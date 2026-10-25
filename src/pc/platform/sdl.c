@@ -60,7 +60,7 @@
 #else
 #define HERE(name) name
 #endif
-#include <SDL3/SDL_opengl.h>
+#include "pc/compat/sdl_opengl.h"
 #include "pc/render/gl_picture.h"
 #include "pc/render/texture_pack.h"
 #include "pc/compat/signal.h"
@@ -126,7 +126,7 @@ static int pointer_x, pointer_y, pointer_inside, cursor_hidden;
 /* The pointer's place is a mouse's (it hovers): the mouse events SDL makes
  * of a touch move it only while the finger is down, and leave it where the
  * finger lifted, so they never reveal the bar by hovering. */
-#ifdef SDL_PLATFORM_ANDROID
+#if defined(SDL_PLATFORM_ANDROID) || defined(MEMORIES_IOS)
 static int pointer_is_mouse;
 #else
 static int pointer_is_mouse = 1;
@@ -176,6 +176,10 @@ static float touch_density(void)
     float density = Android_Density();
     if (density <= 0.0f) density = display ? SDL_GetDisplayContentScale(display) : 0.0f;
     return density > 0.0f ? density : 1.0f;
+#elif defined(MEMORIES_IOS)
+    /* SDL's window coordinates on iOS are points, about 1/163 inch on a
+     * phone: as near a dp (1/160 inch) as makes no difference. */
+    return 1.0f;
 #else
     return 0.0f;
 #endif
@@ -280,7 +284,7 @@ static void resize_mods(int w, int h)
 }
 int HERE(Platform_OpenFolder)(const char *path)
 {
-#ifdef SDL_PLATFORM_ANDROID
+#if defined(SDL_PLATFORM_ANDROID) || defined(MEMORIES_IOS)
     /* An app has no file manager window to open: SDL_OpenURL there takes a
      * URI for an activity, and a plain path opens nothing. */
     (void)path;
@@ -428,7 +432,7 @@ void HERE(Platform_OpenControls)(void)
 static int panel_paused, panel_clock_rate, panel_typing;
 static int panel_overlay(void)
 {
-#ifdef SDL_PLATFORM_ANDROID
+#if defined(SDL_PLATFORM_ANDROID) || defined(MEMORIES_IOS) /* no second windows on a phone */
     return 1;
 #else
     const char *wanted = getenv("MEMORIES_PANELS");
@@ -1061,8 +1065,8 @@ static void block_signals(sigset_t *previous)
 static void restore_signals(const sigset_t *previous) { pthread_sigmask(SIG_SETMASK, previous, NULL); }
 
 int Platform_Scale(void) { return scale; }
-#ifdef SDL_PLATFORM_ANDROID
-int Platform_HasWindowModes(void) { return 0; } /* the whole screen, always (android.c) */
+#if defined(SDL_PLATFORM_ANDROID) || defined(MEMORIES_IOS)
+int Platform_HasWindowModes(void) { return 0; } /* the whole screen, always (android.c, ios_glue.m) */
 #else
 int Platform_HasWindowModes(void) { return 1; }
 #endif
@@ -1909,7 +1913,7 @@ static bool SDLCALL app_event(void *userdata, SDL_Event *event)
             background_paused = 0;
             if (background_clock_rate && Platform_ClockRate() == 0) Platform_SetClockRate(background_clock_rate);
             menu_dirty = 1;
-#ifdef SDL_PLATFORM_ANDROID
+#if defined(SDL_PLATFORM_ANDROID) || defined(MEMORIES_IOS)
             /* The window's surface comes back a moment after this event:
              * a still picture (a panel, which pauses the game, or the
              * system's file picker it opened) repainted only now stayed
@@ -2231,7 +2235,7 @@ static void create_window(const char *title)
     const char *gles = getenv("MEMORIES_GLES");
     SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
     update_menu_scale(240 * scale + 26 * Menu_AutoScale(240 * scale));
-#ifdef __APPLE__
+#if defined(__APPLE__) && !defined(MEMORIES_IOS)
     /* The default macOS context is 2.1. Integer textures need 3.2 core,
      * with shader-based presentation instead of immediate-mode quads. */
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -2382,7 +2386,7 @@ static int software_gl_renderer(void)
                     strstr(name, "Software Rasterizer"));
 }
 
-#ifndef SDL_PLATFORM_ANDROID /* android.c: the picker copies the image into the app */
+#if !defined(SDL_PLATFORM_ANDROID) && !defined(MEMORIES_IOS) /* android.c, ios_glue.m: the picker copies the image into the app */
 typedef struct DiscSelection {
     SDL_AtomicInt done;
     char *path;
@@ -2552,7 +2556,7 @@ int Platform_Open(const char *title)
     }
     Menu_SetPresentPass(use_gl); /* present_pass.c: the desktop presenter's alone */
     Menu_Init();
-#ifdef SDL_PLATFORM_ANDROID
+#if defined(SDL_PLATFORM_ANDROID) || defined(MEMORIES_IOS)
     /* One window, always the whole screen, no update check (android.c):
      * the window's size and mode and the update check are dimmed; Mods and
      * Controls open as panels inside the window. */

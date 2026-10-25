@@ -1,6 +1,8 @@
 """Shared guest address tables and Darwin compiler flags for games and mods."""
 
-from build_config import MACOS_MINIMUM, ROOT
+from pathlib import Path
+
+from build_config import IOS_MINIMUM, MACOS_MINIMUM, ROOT
 
 HOST_LIBC = {
     "printf",
@@ -77,6 +79,9 @@ def darwin_flags(sdk):
         # cannot load a library from its data folder, targetSdk 29+):
         # build_mod.py --target aarch64-translated.
         return [f"--target=aarch64-linux-android{ANDROID_API}", "-fPIC", "-fsigned-char"]
+    if Path(str(sdk)).name.startswith("iPhoneOS"):
+        # build_arm64.py --target ios: the same Darwin ABI on the iPhone SDK.
+        return ["-target", f"arm64-apple-ios{IOS_MINIMUM}", "-isysroot", str(sdk), "-DMEMORIES_IOS=1"]
     return ["-isysroot", str(sdk), f"-mmacosx-version-min={MACOS_MINIMUM}"]
 
 

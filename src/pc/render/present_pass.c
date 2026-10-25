@@ -34,7 +34,7 @@
 #include "present_pass.h"
 #include "pc/platform/settings.h"
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_opengl.h>
+#include "pc/compat/sdl_opengl.h"
 #include <stdio.h>
 
 #define PASS_FUNCTIONS(X) \

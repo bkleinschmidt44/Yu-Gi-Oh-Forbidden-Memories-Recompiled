@@ -92,7 +92,7 @@ int UpdateNet_Get(const char *url, int timeout_seconds, UpdateNetSink sink, void
     return result;
 }
 
-#elif defined(__ANDROID__)
+#elif defined(__ANDROID__) || defined(MEMORIES_IOS)
 
 /* No curl to run in an app (android.c turns the check off); an HTTP client
  * for Android is for later. */

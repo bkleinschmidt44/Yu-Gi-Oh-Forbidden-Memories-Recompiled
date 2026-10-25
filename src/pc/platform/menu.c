@@ -970,8 +970,8 @@ static void set_reason(int id, const char *why)
  * and up (gl_picture.c). */
 static void update_effect_items(int console, const char *no_picture)
 {
-#ifdef __ANDROID__
-    const char *why = present_pass ? NULL : "not on Android yet";
+#if defined(__ANDROID__) || defined(MEMORIES_IOS)
+    const char *why = present_pass ? NULL : "not on phones yet";
 #else
     const char *why = present_pass ? NULL : "needs desktop OpenGL";
 #endif
@@ -988,7 +988,7 @@ static void update_hd_items(void)
 {
     static const int ids[] = {MENU_ITEM_HD_TEXT, MENU_ITEM_OPPONENT_NAME, MENU_ITEM_PGXP};
     int console = Settings_Get(SET_INTERNAL_SCALE) < 2;
-#ifdef __ANDROID__ /* the system's GL is GLES (sdl.c, es_wanted) */
+#if defined(__ANDROID__) || defined(MEMORIES_IOS) /* the system's GL is GLES (sdl.c, es_wanted) */
     const char *hd_why = !hd_picture ? "needs OpenGL ES 3" : console ? "needs Internal 2x" : NULL;
     const char *name_why = !hd_picture && !console ? "needs OpenGL ES 3 or 1x" : NULL;
 #else
@@ -1009,7 +1009,7 @@ static void update_hd_items(void)
             }
         }
     }
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(MEMORIES_IOS)
     update_effect_items(console, "needs OpenGL ES 3");
 #else
     update_effect_items(console, "needs OpenGL 3");

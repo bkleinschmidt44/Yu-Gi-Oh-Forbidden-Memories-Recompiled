@@ -1,0 +1,94 @@
+name: ios
+
+# The iPhone/iPad build: tools/pc/build.py --target ios on a macOS runner,
+# packaged as an unsigned (ad-hoc) .ipa by tools/pc/package_ios.py. No game
+# data is involved; the player picks their own disc on the device.
+#
+# Every run publishes its .ipa to the "ios-latest" pre-release (a stable
+# download link for a signing service) and pushes its logs to the ci-logs
+# branch, so a failed build can be read without the Actions UI.
+on:
+  push:
+    branches: [ios]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            tmp/pc/llvm-macos
+            tmp/pc/tools/macos
+            tmp/pc/macos-deps
+          key: macos-arm64-llvm21.1.8-${{ hashFiles('tools/pc/macos_toolchain.json', 'tools/pc/macos_deps.py', 'tools/pc/dependency_archives.py', 'tools/pc/fetch_tools.py') }}
+      - uses: actions/cache@v4
+        with:
+          path: tmp/pc/ios-deps
+          key: ios-deps-${{ hashFiles('tools/pc/ios_deps.py', 'tools/pc/dependency_archives.py', 'tools/pc/build_config.py') }}
+      - name: Toolchain
+        run: |
+          xcodebuild -version | tee -a tmp-ci.log
+          xcrun --sdk iphoneos --show-sdk-path | tee -a tmp-ci.log
+      - name: Build the iOS game
+        run: |
+          set -o pipefail
+          mkdir -p tmp
+          python tools/pc/build.py --target ios 2>&1 | tee tmp/ios-build.log
+      - name: Package the .ipa
+        run: |
+          set -o pipefail
+          python tools/pc/package_ios.py --binary tmp/pc/ios/memories-ios --out tmp/pc-release/ios --version "dev-${GITHUB_SHA:0:7}" 2>&1 | tee tmp/ios-package.log
+      - name: Upload the .ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: FMRecompiled-ios
+          path: tmp/pc-release/ios/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish to the ios-latest pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete ios-latest --yes --cleanup-tag || true
+          gh release create ios-latest tmp/pc-release/ios/*.ipa --prerelease --target "$GITHUB_SHA" \
+            --title "iOS build (latest)" \
+            --notes "Built from ${GITHUB_SHA:0:7}. Unsigned: sign it with your signing service, then pick your own Forbidden Memories (USA) .bin on first launch."
+      - name: Push logs to the ci-logs branch
+        if: always()
+        env:
+          TOKEN: ${{ github.token }}
+          STATUS: ${{ job.status }}
+        run: |
+          out="$RUNNER_TEMP/ci-logs"
+          rm -rf "$out"; mkdir -p "$out/units"
+          cp tmp-ci.log tmp/ios-build.log tmp/ios-package.log "$out/" 2>/dev/null || true
+          for log in tmp/pc/ios/logs/*.log; do
+            [ -s "$log" ] && grep -qiE "error|fatal|undefined" "$log" && cp "$log" "$out/units/" || true
+          done
+          cp tmp/pc/ios/logs/link.log tmp/pc/ios/logs/ios_glue.log tmp/pc/ios/logs/tables.log "$out/" 2>/dev/null || true
+          find tmp/pc/ios-deps/build -name CMakeConfigureLog.yaml -newer tools/pc/ios_deps.py -exec cp {} "$out/" \; 2>/dev/null || true
+          echo "$GITHUB_SHA $STATUS" > "$out/STATUS"
+          cd "$out"
+          git init -q -b ci-logs
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "logs for ${GITHUB_SHA:0:7}: $STATUS"
+          git push -qf "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ci-logs

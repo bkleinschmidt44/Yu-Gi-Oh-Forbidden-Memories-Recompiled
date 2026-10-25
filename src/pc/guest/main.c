@@ -188,6 +188,10 @@ static void user_dir_fact(int writable, const char *why)
     else Monitor_Fact("user dir", "%s; writable: no: %s", Paths_UserDir(), why);
 }
 
+#ifdef MEMORIES_IOS
+/* ios_glue.m owns the process's main (SDL_RunApp, UIKit) and calls this. */
+#define main Memories_IosMain
+#endif
 int main(int argc, char **argv)
 {
 #ifdef _WIN32

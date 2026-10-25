@@ -5,9 +5,9 @@
  * sdl.c shows the picture through the SDL renderer instead; these only
  * complete the link. tools/pc/build_game32.py picks this file for Android
  * builds (ANDROID_BACKEND). */
-#ifdef __ANDROID__
+#if defined(__ANDROID__) || defined(MEMORIES_IOS)
 #include "present_pass.h"
-#include <SDL3/SDL_opengl.h>
+#include "pc/compat/sdl_opengl.h"
 
 int PresentPass_InitCore(void) { return 0; }
 

@@ -6,6 +6,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 # Declared deployment baseline; runtime compatibility is validated separately.
 MACOS_MINIMUM = "11.0"
+# iPhone/iPad (build_arm64.py --target ios): the macOS ARM64 translated
+# backend compiled against the iPhoneOS SDK.
+IOS_MINIMUM = "15.0"
 
 # Keep host platform, machine architecture, native calling ABI, and guest
 # memory strategy explicit.  In particular, Windows x64 is still the fixed
@@ -83,6 +86,18 @@ TARGETS = {
         "driver": "build_arm64.py",
         "build": "tmp/pc/macos",
         "executable": "memories-arm64",
+    },
+    # iPhone and iPad: the macOS target's translated backend and SDL host,
+    # built with the iPhoneOS SDK and packaged by package_ios.py.
+    "ios": {
+        "platform": "ios",
+        "architecture": "arm64",
+        "abi": "darwin-lp64",
+        "memory_model": "translated-32",
+        "guest_assembly": "translated-arm64",
+        "driver": "build_arm64.py",
+        "build": "tmp/pc/ios",
+        "executable": "memories-ios",
     },
 }
 

@@ -54,6 +54,11 @@ ROOT = Path(__file__).resolve().parents[2]
 # (--target android-arm64-translated).
 ANDROID_BIN = None
 NM = "nm"
+# Set by main() for --target ios: the iPhoneOS SDK build (package_ios.py).
+IOS = False
+# The iOS host glue (UIKit, Objective-C): compiled with Xcode's clang, not
+# through the guest translation, and linked beside the game's objects.
+IOS_GLUE = "src/pc/platform/ios/ios_glue.m"
 
 
 def c_symbol(name):
@@ -644,6 +649,8 @@ def link_game(
         print("Link " + ("failed: " + str(build / "logs/link.log") if status
                          else "succeeded: " + str(build / "libgame.so")), flush=True)
         return status
+    if IOS:
+        return link_ios(build, jobs, path_for, tables_obj, export_object, sdk, dependencies)
     command = [
         cc,
         *darwin_flags(sdk),
@@ -707,9 +714,51 @@ def link_game(
     return status
 
 
+def link_ios(build, jobs, path_for, tables_obj, export_object, sdk, dependencies):
+    """The iPhone executable: the game's objects, the UIKit glue and SDL3's
+    UIKit backend, linked by Xcode's clang (its compiler runtime for iOS)."""
+    xcode_cc = subprocess.check_output(["xcrun", "--sdk", "iphoneos", "--find", "clang"], text=True).strip()
+    target = darwin_flags(sdk)
+    glue_obj = build / "ios_glue.o"
+    status = run_logged(
+        [xcode_cc, *target, "-fobjc-arc", "-O2", "-Wall", "-I" + str(ROOT / "src"),
+         "-I" + str(dependencies / "include"), "-c", str(ROOT / IOS_GLUE), "-o", str(glue_obj)],
+        build / "logs/ios_glue.log",
+    )
+    if status:
+        print("iOS glue failed: " + str(build / "logs/ios_glue.log"), flush=True)
+        return status
+    frameworks = [
+        "UIKit", "Foundation", "CoreFoundation", "CoreGraphics", "QuartzCore", "Metal",
+        "OpenGLES", "AudioToolbox", "AVFoundation", "CoreAudio", "CoreHaptics", "CoreMotion",
+        "GameController", "CoreText", "CoreBluetooth", "UniformTypeIdentifiers", "CoreMedia",
+        "CoreVideo",
+    ]
+    command = [
+        xcode_cc,
+        *target,
+        *object_arguments(build, [str(path_for("obj", s, ".o")) for s, g in jobs]),
+        str(tables_obj),
+        str(export_object),
+        str(glue_obj),
+        *[str(dependencies / "lib" / name) for name in ["libfreetype.a", "libpng16.a", "libz.a", "libSDL3.a"]],
+        "-liconv",
+        "-lobjc",
+        *[part for name in frameworks for part in ("-framework", name)],
+        "-Wl,-export_dynamic",
+        "-o",
+        str(build / "memories-ios"),
+    ]
+    (build / "link-command.json").write_text(json.dumps(command, indent=2) + "\n")
+    status = run_logged(command, build / "logs/link.log")
+    print("Link " + ("failed: " + str(build / "logs/link.log") if status
+                     else "succeeded: " + str(build / "memories-ios")), flush=True)
+    return status
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--target", choices=("macos", "android-arm64-translated"), default="macos")
+    parser.add_argument("--target", choices=("macos", "ios", "android-arm64-translated"), default="macos")
     parser.add_argument("--build", type=Path)
     parser.add_argument("--jobs", type=int, default=8)
     parser.add_argument("--compile-only", action="store_true")
@@ -736,9 +785,16 @@ def main():
     import sys
 
     sys.argv = [sys.argv[0]]
-    global ANDROID_BIN, NM
+    global ANDROID_BIN, NM, IOS
     llvm = toolchain()
-    if args.target == "android-arm64-translated":
+    if args.target == "ios":
+        IOS = True
+        cc = str(llvm / "bin/clang")
+        from ios_deps import ensure as ensure_ios, sdk_path as ios_sdk_path
+
+        dependencies = ensure_ios(jobs=args.jobs)
+        sdk = str(ios_sdk_path())
+    elif args.target == "android-arm64-translated":
         import build_android_deps
 
         ANDROID_BIN = Path(build_android_deps.llvm_bin())
@@ -759,7 +815,7 @@ def main():
     groups = game_sources()
     target = TARGETS[args.target]
     natives = native_sources(target)
-    if ANDROID_BIN:
+    if ANDROID_BIN or IOS:
         # GLES has no desktop GL presenter (build_game32.py ANDROID_BACKEND);
         # the loader is libmain.so's own unit.
         natives = sorted(
@@ -930,7 +986,7 @@ def main():
             version=release_version(),
             fingerprint=fingerprint_file.read_text().strip(),
             binary_sha256=hashlib.sha256(
-                (build / ("libgame.so" if ANDROID_BIN else "memories-arm64")).read_bytes()
+                (build / ("libgame.so" if ANDROID_BIN else "memories-ios" if IOS else "memories-arm64")).read_bytes()
             ).hexdigest(),
         )
         (build / "build-identity.json").write_text(
