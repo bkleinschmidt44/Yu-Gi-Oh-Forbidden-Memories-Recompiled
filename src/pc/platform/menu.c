@@ -833,6 +833,7 @@ static void setting_changed(SettingId id, int value)
     case SET_FPS: Platform_SetPresentCap(value); break;
     case SET_MENU_SCALE: Platform_ApplyDisplaySettings(); break;
     case SET_SCREEN_ROTATION: Platform_ApplyDisplaySettings(); break;
+    case SET_ORIENTATION: Platform_ApplyDisplaySettings(); break; /* iOS: turns the window now */
     default: break;
     }
 }

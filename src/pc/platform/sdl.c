@@ -1297,6 +1297,10 @@ static void relayout(void)
         output_w != logged_output_w || output_h != logged_output_h) {
         LOG(LOG_WINDOW, "layout %dx%d logical -> %dx%d pixels (%.2fx, %.2fy)",
             window_w, window_h, output_w, output_h, layout.pixel_x, layout.pixel_y);
+#ifdef MEMORIES_IOS
+        fprintf(stderr, "memories-ios: layout %dx%d points -> %dx%d pixels, %s, band %d-%d\n", window_w, window_h,
+                output_w, output_h, portrait ? "portrait" : "landscape", band_top, band_bottom);
+#endif
         logged_window_w = window_w; logged_window_h = window_h;
         logged_output_w = output_w; logged_output_h = output_h;
     }

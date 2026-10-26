@@ -158,19 +158,51 @@ int Platform_SelectDisc(char *path, size_t size, char *why, size_t why_size)
 
 void Ios_ApplyOrientation(int mode); /* platform.h */
 
+static int orientation_applied = -1;
+
+static const char *orientation_hint(int mode)
+{
+    return mode == 1 ? "Portrait" : mode == 2 ? "LandscapeLeft LandscapeRight Portrait" : "LandscapeLeft LandscapeRight";
+}
+
+/* What UIKit has, for the log: the scene's orientation and each window's
+ * frame and what its view controller accepts. */
+static void log_orientation(const char *when)
+{
+    @autoreleasepool {
+        CGRect screen = [UIScreen mainScreen].bounds;
+        fprintf(stderr, "memories-ios: orientation %s: screen %.0fx%.0f, device %ld\n", when, screen.size.width,
+                screen.size.height, (long)[UIDevice currentDevice].orientation);
+        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            if (![scene isKindOfClass:[UIWindowScene class]]) continue;
+            UIWindowScene *windows = (UIWindowScene *)scene;
+            fprintf(stderr, "  scene interface %ld, bounds %.0fx%.0f\n", (long)windows.interfaceOrientation,
+                    windows.coordinateSpace.bounds.size.width, windows.coordinateSpace.bounds.size.height);
+            for (UIWindow *window in windows.windows) {
+                UIViewController *root = window.rootViewController;
+                fprintf(stderr, "  window %s%s frame %.0f,%.0f %.0fx%.0f, root %s accepts 0x%lx, view %.0fx%.0f\n",
+                        window.hidden ? "(hidden) " : "", window.isKeyWindow ? "(key) " : "", window.frame.origin.x,
+                        window.frame.origin.y, window.frame.size.width, window.frame.size.height,
+                        root ? NSStringFromClass([root class]).UTF8String : "none",
+                        root ? (unsigned long)root.supportedInterfaceOrientations : 0ul,
+                        root ? root.view.bounds.size.width : 0, root ? root.view.bounds.size.height : 0);
+            }
+        }
+    }
+}
+
 /* Video > Orientation (platform.h): SDL's view controller reads
  * SDL_HINT_ORIENTATIONS each time UIKit asks what it supports, so the hint
  * changes it; UIKit is then told to ask again and turn the window. */
 void Ios_ApplyOrientation(int mode)
 {
-    static int applied = -1;
-    const char *hint = mode == 1 ? "Portrait" : mode == 2 ? "LandscapeLeft LandscapeRight Portrait"
-                                                          : "LandscapeLeft LandscapeRight";
+    const char *hint = orientation_hint(mode);
     UIInterfaceOrientationMask mask = mode == 1 ? UIInterfaceOrientationMaskPortrait
                                     : mode == 2 ? (UIInterfaceOrientationMaskLandscape | UIInterfaceOrientationMaskPortrait)
                                                 : UIInterfaceOrientationMaskLandscape;
-    if (mode == applied) return;
-    applied = mode;
+    if (mode == orientation_applied) return;
+    orientation_applied = mode;
+    log_orientation("before");
     SDL_SetHint(SDL_HINT_ORIENTATIONS, hint);
     @autoreleasepool {
         for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
@@ -196,6 +228,26 @@ void Ios_ApplyOrientation(int mode)
         }
     }
     fprintf(stderr, "memories-ios: orientation %s\n", hint);
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, NSEC_PER_SEC), dispatch_get_main_queue(), ^{
+        log_orientation("a second later");
+    });
+}
+
+/* Video > Orientation as saved (Documents/settings.txt, settings.c's
+ * format): read before the window is made, so the window starts the way
+ * it is meant to be held rather than turning once the game is up. */
+static int saved_orientation(void)
+{
+    char file[1100], line[256];
+    FILE *in;
+    int mode = 0;
+    snprintf(file, sizeof(file), "%s/settings.txt", documents);
+    if (!(in = fopen(file, "r"))) return 0;
+    while (fgets(line, sizeof(line), in)) {
+        if (!strncmp(line, "orientation=", 12)) mode = atoi(line + 12);
+    }
+    fclose(in);
+    return mode >= 0 && mode <= 2 ? mode : 0;
 }
 
 /* --- start ----------------------------------------------------------------- */
@@ -242,7 +294,9 @@ static int start(int argc, char **argv)
     setenv("MEMORIES_FULLSCREEN", "1", 0);
     setenv("MEMORIES_NO_MONITOR", "1", 0);
     setenv("MEMORIES_NO_UPDATE_CHECK", "1", 0);
-    SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
+    orientation_applied = saved_orientation();
+    SDL_SetHint(SDL_HINT_ORIENTATIONS, orientation_hint(orientation_applied));
+    fprintf(stderr, "memories-ios: starting with orientation %s\n", orientation_hint(orientation_applied));
     /* The game's own touch controls take the fingers; SDL's synthetic mouse
      * still reaches the menus, as on Android. */
     fprintf(stderr, "memories-ios: user folder %s, program folder %s\n", documents,
