@@ -284,6 +284,8 @@ static int start(int argc, char **argv)
     }
     snprintf(game, sizeof(game), "%s/game", documents);
     mkdir(game, 0755);
+    snprintf(game, sizeof(game), "%s/mods", documents); /* where mods made with the workshop go */
+    mkdir(game, 0755);
     snprintf(log, sizeof(log), "%s/memories-log.txt", documents);
     if (freopen(log, "w", stderr)) setvbuf(stderr, NULL, _IONBF, 0);
     freopen(log, "a", stdout);

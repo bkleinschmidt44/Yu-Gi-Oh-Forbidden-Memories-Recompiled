@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Forbidden Workshop</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Workshop">
+<meta name="theme-color" content="#0e1320">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one column, the size of a phone; a bar of tabs at the bottom, views
+   that push in from lists, and a sheet that rises for every edit.
+   Look: obsidian and lapis with gold leaf, the tomb the game opens in. */
+:root {
+  --ink: #0e1320;
+  --panel: #161d2d;
+  --raise: #1e2740;
+  --line: #2b3652;
+  --sand: #ece0c4;
+  --muted: #9ba4b9;
+  --gold: #d9ab4c;
+  --gold-deep: #9c7426;
+  --lapis: #4c78e0;
+  --danger: #e36c5d;
+  --ok: #73c7a0;
+  --display: "Marcellus SC", "Times New Roman", serif;
+  --body: "Source Sans 3", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --tabs-h: 58px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--ink); color: var(--sand);
+  font: 16px/1.45 var(--body); -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input, textarea { font: inherit; color: inherit; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.top {
+  position: sticky; top: 0; z-index: 5;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+  background: color-mix(in srgb, var(--ink) 88%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 12px; min-height: 52px;
+}
+.top h1 { font: 22px/1.1 var(--display); letter-spacing: .04em; margin: 0; color: var(--gold); flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.back { background: none; border: 0; color: var(--gold); padding: 6px 4px; font-weight: 600; cursor: pointer; }
+.chip { font-size: 13px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px;
+  max-width: 45%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+main {
+  padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(var(--tabs-h) + env(safe-area-inset-bottom, 0px) + 24px) max(16px, env(safe-area-inset-left, 0px));
+  max-width: 720px; margin: 0 auto;
+}
+section { display: flex; flex-direction: column; gap: 16px; }
+h2 { font: 26px/1.15 var(--display); margin: 4px 0 0; letter-spacing: .02em; text-wrap: balance; }
+h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: 8px 0 0; font-weight: 700; }
+p { margin: 0; max-width: 62ch; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+
+.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  padding: 0 max(8px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(8px, env(safe-area-inset-left, 0px));
+  background: var(--panel); border-top: 1px solid var(--line);
+}
+.tabs button {
+  height: var(--tabs-h); background: none; border: 0; cursor: pointer;
+  color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .04em;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+}
+.tabs button svg { width: 24px; height: 24px; }
+.tabs button[aria-selected="true"] { color: var(--gold); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 46px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--raise); font-weight: 600; cursor: pointer; text-align: center;
+}
+.btn.primary { background: linear-gradient(180deg, var(--gold), var(--gold-deep)); color: #1b1408; border-color: transparent; }
+.btn.danger { color: var(--danger); }
+.btn.wide { width: 100%; }
+.btn:disabled { opacity: .5; }
+.row-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+.row-buttons .btn { flex: 1 1 140px; }
+label.file { position: relative; overflow: hidden; }
+label.file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+.search {
+  width: 100%; min-height: 46px; padding: 0 14px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--panel);
+}
+.list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--panel); }
+.item {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px;
+  background: none; border: 0; border-top: 1px solid var(--line); text-align: left; cursor: pointer; min-height: 56px;
+}
+.item:first-child { border-top: 0; }
+.item:active { background: var(--raise); }
+.item .main { flex: 1; min-width: 0; }
+.item .name { font-weight: 600; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .sub { font-size: 13px; color: var(--muted); display: block; }
+.item .end { text-align: right; flex: none; }
+.item .pct { font: 15px var(--mono); color: var(--sand); display: block; }
+.item .weight { font: 11px var(--mono); color: var(--muted); display: block; }
+.item .thumb { width: 40px; height: 32px; border-radius: 4px; background: var(--raise); image-rendering: pixelated; flex: none; object-fit: cover; }
+.bar { display: block; height: 3px; background: var(--line); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--gold); }
+.pill { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px;
+  border-radius: 999px; background: color-mix(in srgb, var(--gold) 22%, transparent); color: var(--gold); white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex: none; }
+.chev { color: var(--muted); flex: none; }
+
+.segments { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; padding: 3px; gap: 3px; }
+.segments button { min-height: 38px; border: 0; border-radius: 9px; background: none; color: var(--muted);
+  font-size: 13px; font-weight: 700; cursor: pointer; }
+.segments button[aria-pressed="true"] { background: var(--raise); color: var(--gold); }
+.summary { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.summary .grow { flex: 1; min-width: 0; }
+
+.card-view { display: grid; gap: 14px; }
+.art-frame { background: radial-gradient(circle at 50% 40%, #2a2414, #120e07); border: 1px solid var(--gold-deep);
+  border-radius: 14px; padding: 14px; display: grid; place-items: center; }
+.art-frame img { width: min(100%, 408px); aspect-ratio: 102 / 96; image-rendering: pixelated; border-radius: 4px; background: #000; }
+.thumb-row { display: flex; align-items: center; gap: 12px; }
+.thumb-row img { width: 80px; aspect-ratio: 40 / 32; image-rendering: pixelated; border-radius: 4px; background: #000; }
+.stats { display: flex; gap: 8px; flex-wrap: wrap; font: 13px var(--mono); color: var(--muted); }
+
+.form { display: grid; gap: 12px; }
+.form label { display: grid; gap: 6px; font-size: 14px; color: var(--muted); font-weight: 600; }
+.form input, .form textarea { width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--sand); font-weight: 400; }
+.form textarea { min-height: 80px; resize: vertical; }
+.issue { padding: 10px 12px; border-radius: 10px; background: var(--panel); border-left: 3px solid var(--gold); font-size: 14px; }
+.issue.error { border-left-color: var(--danger); }
+.steps { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 62ch; }
+.note { padding: 12px 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+
+/* setup */
+.hero { padding: 28px 4px 8px; display: grid; gap: 14px; }
+.hero .eye { width: 64px; height: 64px; color: var(--gold); }
+.hero h2 { font-size: 32px; color: var(--gold); }
+.progress { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .2s; }
+.status { font-size: 14px; color: var(--muted); min-height: 1.4em; }
+
+/* sheet */
+.scrim { position: fixed; inset: 0; background: rgba(5, 8, 15, .6); z-index: 20; }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; max-height: 88vh; overflow: auto;
+  background: var(--panel); border-top: 1px solid var(--gold-deep); border-radius: 18px 18px 0 0;
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 18px) max(16px, env(safe-area-inset-left, 0px));
+  display: grid; gap: 14px; max-width: 720px; margin: 0 auto;
+}
+.sheet .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line); justify-self: center; }
+.stepper { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; align-items: center; }
+.stepper input { text-align: center; font: 28px var(--mono); min-height: 56px; border-radius: 12px; border: 1px solid var(--line); background: var(--ink); color: var(--sand); width: 100%; }
+.stepper .btn { min-height: 56px; padding: 0; font-size: 22px; }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabs-h) + env(safe-area-inset-bottom, 0px) + 14px);
+  z-index: 30; background: var(--sand); color: var(--ink); padding: 10px 16px; border-radius: 12px; font-weight: 600;
+  font-size: 14px; max-width: calc(100% - 32px); box-shadow: 0 8px 30px rgba(0,0,0,.4); }
+.toast.error { background: var(--danger); color: #fff; }
+.busy { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: rgba(5, 8, 15, .45); }
+.busy span { background: var(--panel); border: 1px solid var(--line); padding: 14px 18px; border-radius: 12px; font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="back" id="back" hidden aria-label="Back">‹ Back</button>
+  <h1 id="title">Forbidden Workshop</h1>
+  <span class="chip" id="mod-chip" hidden></span>
+</header>
+
+<main>
+  <!-- first run: the editor starts, then the disc -->
+  <section id="v-setup">
+    <div class="hero">
+      <svg class="eye" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 30c8-10 17-15 26-15s18 5 26 15c-8 10-17 15-26 15S14 40 6 30z"/>
+        <circle cx="32" cy="30" r="7"/><path d="M28 45l-4 13M36 45c2 4 6 7 11 7M14 38l-6 6"/>
+      </svg>
+      <h2>Forbidden Workshop</h2>
+      <p>Make your own mods for the iPhone port of Yu-Gi-Oh! Forbidden Memories: opponents' decks, what they drop, and card pictures.</p>
+    </div>
+    <div class="progress" aria-hidden="true"><i id="setup-bar"></i></div>
+    <p class="status" id="setup-status" role="status">Starting the editor…</p>
+    <div id="setup-disc" hidden class="card-view">
+      <p>Choose your own Forbidden Memories (USA) disc image, the <strong>.bin</strong> of its .bin/.cue pair. It stays on your phone: the workshop reads the card tables out of it and keeps them in this browser.</p>
+      <label class="btn primary wide file">Choose your .bin<input type="file" id="disc-input"></label>
+      <p class="muted small">The game's copy is in Files › On My iPhone › Forbidden Memories › game.</p>
+    </div>
+  </section>
+
+  <!-- duelists -->
+  <section id="v-duelists" hidden>
+    <h2>Duelists</h2>
+    <p class="muted">Change the cards each opponent builds a deck from, and the cards they drop when you win.</p>
+    <input class="search" id="duelist-search" type="search" placeholder="Search duelists" autocomplete="off">
+    <div class="list" id="duelist-list"></div>
+  </section>
+
+  <section id="v-duelist" hidden>
+    <h2 id="duelist-name"></h2>
+    <div class="segments" role="group" aria-label="Pool">
+      <button data-pool="deck" aria-pressed="true">Deck</button>
+      <button data-pool="pow" aria-pressed="false">S/A-POW</button>
+      <button data-pool="bcd" aria-pressed="false">B/C/D</button>
+      <button data-pool="tec" aria-pressed="false">S/A-TEC</button>
+    </div>
+    <p class="muted small" id="pool-about"></p>
+    <div class="summary">
+      <span class="grow muted small" id="pool-summary"></span>
+      <span class="pill" id="pool-changed" hidden>Changed</span>
+      <button class="btn" id="pool-revert" hidden>Revert</button>
+    </div>
+    <button class="btn primary" id="pool-add">Add a card</button>
+    <div class="list" id="pool-list"></div>
+  </section>
+
+  <!-- card art -->
+  <section id="v-art" hidden>
+    <h2>Card art</h2>
+    <p class="muted">Replace any card's picture with your own image. The hand and field thumbnail is cut from it for you.</p>
+    <input class="search" id="art-search" type="search" placeholder="Search by name or number" autocomplete="off">
+    <div class="row-buttons"><button class="btn" id="art-filter" aria-pressed="false">Show changed only</button></div>
+    <div class="list" id="art-list"></div>
+  </section>
+
+  <section id="v-card" hidden>
+    <h2 id="card-name"></h2>
+    <div class="stats" id="card-stats"></div>
+    <div class="card-view">
+      <div class="art-frame"><img id="card-art" alt=""></div>
+      <div class="thumb-row"><img id="card-thumb" alt=""><p class="muted small" id="card-from"></p></div>
+      <div class="row-buttons">
+        <label class="btn primary file">Replace picture<input type="file" accept="image/*" id="art-input"></label>
+        <button class="btn" id="art-revert" hidden>Use the original</button>
+      </div>
+      <p class="muted small">Pictures are 102 × 96. A different shape is cut from the middle; up to 4× that size is kept for the game's sharper resolutions.</p>
+    </div>
+  </section>
+
+  <!-- the mod -->
+  <section id="v-mod" hidden>
+    <h2>Your mod</h2>
+    <div class="form">
+      <label>Name<input id="mod-name" autocomplete="off"></label>
+      <label>Folder name<input id="mod-id" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+      <label>Author<input id="mod-author" autocomplete="off"></label>
+      <label>Version<input id="mod-version" autocomplete="off"></label>
+      <label>Description<textarea id="mod-description"></textarea></label>
+      <button class="btn" id="mod-save">Save details</button>
+    </div>
+
+    <h3>Checks</h3>
+    <div id="issues" class="card-view"></div>
+
+    <h3>Put it in the game</h3>
+    <button class="btn primary wide" id="export">Export mod (.zip)</button>
+    <ol class="steps small">
+      <li>Save the .zip to Files.</li>
+      <li>In Files, tap it once to unpack it into a folder.</li>
+      <li>Move that folder into On My iPhone › Forbidden Memories › mods.</li>
+      <li>In the game, open MENU › Game › Mods and turn it on.</li>
+    </ol>
+
+    <h3>Other mods</h3>
+    <div class="row-buttons">
+      <label class="btn file">Open a mod .zip<input type="file" accept=".zip,application/zip" id="import-input"></label>
+      <button class="btn danger" id="new-mod">Start a new mod</button>
+    </div>
+
+    <h3>Game files</h3>
+    <label class="btn file">Choose a different .bin<input type="file" id="disc-input-2"></label>
+    <p class="note">Your work is saved in this browser as you go. Safari can clear a site's data after weeks unused, so add this page to your Home Screen (Share › Add to Home Screen) and export a .zip now and then to keep a copy.</p>
+  </section>
+</main>
+
+<nav class="tabs" id="tabs" hidden>
+  <button data-tab="duelists" aria-selected="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18 14.6c1.8.7 3 2.5 3.5 5.4"/></svg>
+    Duelists</button>
+  <button data-tab="art" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="1.5"/><rect x="7.5" y="5.5" width="9" height="8"/><path d="M7.5 17h9"/></svg>
+    Card art</button>
+  <button data-tab="mod" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/></svg>
+    Mod</button>
+</nav>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast" hidden role="status"></div>
+<div class="busy" id="busy" hidden><span id="busy-text">Working…</span></div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.29.3/full/pyodide.js"></script>
+<script src="disc-reader.js"></script>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const POOL_ABOUT = {
+  deck: "The cards this duelist builds a 40-card deck from. A card with a bigger chance turns up more often.",
+  pow: "Dropped when you win with an S or A rank by power (POW).",
+  bcd: "Dropped when you win with a B, C or D rank.",
+  tec: "Dropped when you win with an S or A rank by technique (TEC)."
+};
+const TOTAL = 2048;
+let py, bridge, cards = [], cardById = new Map(), duelistRows = [];
+let view = "setup", tab = "duelists", stack = [];
+let current = { duelist: 0, pool: "deck", card: 0 };
+let artChangedOnly = false, artChanged = new Set();
+
+/* --- small helpers --------------------------------------------------------- */
+function toast(text, error) {
+  const t = $("toast");
+  t.textContent = text; t.classList.toggle("error", !!error); t.hidden = false;
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => (t.hidden = true), error ? 5200 : 2600);
+}
+function busy(text) { $("busy-text").textContent = text || "Working…"; $("busy").hidden = !text; }
+function pyMessage(error) {
+  const lines = String(error && error.message || error).split("\n").map((l) => l.trim()).filter(Boolean);
+  const last = lines[lines.length - 1] || "Something went wrong.";
+  return last.replace(/^[A-Za-z]*Error: /, "");
+}
+/* A bridge call: its JSON answer, or a toast with what went wrong. */
+function call(name, ...args) {
+  try {
+    const out = bridge[name](...args);
+    return typeof out === "string" && (out.startsWith("{") || out.startsWith("[")) ? JSON.parse(out) : out;
+  } catch (error) {
+    toast(pyMessage(error), true);
+    throw error;
+  }
+}
+const pct = (w) => (w * 100 / TOTAL);
+const fmtPct = (w) => { const p = pct(w); return (p >= 10 ? p.toFixed(1) : p >= 1 ? p.toFixed(2) : p.toFixed(2)) + "%"; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function cardSub(c) {
+  if (!c) return "";
+  const monster = c[2] !== "Magic" && c[2] !== "Trap" && c[2] !== "Ritual" && c[2] !== "Equip";
+  return `#${c[0]} · ${c[2]}` + (monster ? ` · ${c[3]}/${c[4]}` : "");
+}
+
+/* --- storage: IndexedDB through Pyodide's IDBFS ------------------------------ */
+let syncing = null, syncAgain = false;
+function persist() {
+  if (syncing) { syncAgain = true; return syncing; }
+  syncing = new Promise((resolve) => py.FS.syncfs(false, (err) => { if (err) console.warn(err); resolve(); }))
+    .then(() => { syncing = null; if (syncAgain) { syncAgain = false; return persist(); } });
+  return syncing;
+}
+function restore() { return new Promise((resolve) => py.FS.syncfs(true, (err) => { if (err) console.warn(err); resolve(); })); }
+
+/* --- navigation ------------------------------------------------------------- */
+const TITLES = { duelists: "Duelists", duelist: "Duelists", art: "Card art", card: "Card art", mod: "Mod", setup: "Forbidden Workshop" };
+function show(name, push) {
+  if (push) stack.push(view); else stack = [];
+  for (const s of document.querySelectorAll("main > section")) s.hidden = s.id !== "v-" + name;
+  view = name;
+  $("back").hidden = stack.length === 0;
+  $("title").textContent = TITLES[name] || "Forbidden Workshop";
+  window.scrollTo(0, 0);
+}
+$("back").onclick = () => { const to = stack.pop(); if (to) { show(to, false); refresh(to); } };
+function refresh(name) {
+  if (name === "duelists") renderDuelists();
+  if (name === "art") renderArtList();
+  if (name === "mod") renderMod();
+}
+for (const b of document.querySelectorAll(".tabs button")) {
+  b.onclick = () => {
+    tab = b.dataset.tab;
+    for (const o of document.querySelectorAll(".tabs button")) o.setAttribute("aria-selected", o === b);
+    show(tab, false); refresh(tab);
+  };
+}
+
+/* --- sheet ----------------------------------------------------------------- */
+function openSheet(html, wire) {
+  const sheet = $("sheet");
+  sheet.innerHTML = '<div class="grab"></div>' + html;
+  sheet.hidden = false; $("scrim").hidden = false;
+  wire(sheet);
+  const first = sheet.querySelector("[autofocus]");
+  if (first) setTimeout(() => first.focus(), 60);
+}
+function closeSheet() { $("sheet").hidden = true; $("scrim").hidden = true; $("sheet").innerHTML = ""; }
+$("scrim").onclick = closeSheet;
+
+/* --- setup ------------------------------------------------------------------ */
+function setupStatus(text, fraction) {
+  $("setup-status").textContent = text;
+  if (fraction != null) $("setup-bar").style.width = Math.round(fraction * 100) + "%";
+}
+async function start() {
+  try {
+    setupStatus("Starting the editor (about 10 MB the first time)…", 0.05);
+    py = await loadPyodide();
+    setupStatus("Unpacking the editor…", 0.45);
+    const engine = await fetch("engine.zip", { cache: "no-cache" });
+    if (!engine.ok) throw new Error("Could not download the editor's files.");
+    py.unpackArchive(await engine.arrayBuffer(), "zip", { extractDir: "/app" });
+    py.FS.mkdirTree("/persist");
+    py.FS.mount(py.FS.filesystems.IDBFS, {}, "/persist");
+    await restore();
+    py.runPython("import sys; sys.path[:0] = ['/app/tools/pc', '/app/tools/web_editor']\nimport bridge\nbridge.set_root('/persist')");
+    bridge = py.globals.get("bridge");
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    setupStatus("Ready.", 0.6);
+    if (bridge.has_game()) await openGame();
+    else askForDisc();
+  } catch (error) {
+    setupStatus("The editor could not start: " + pyMessage(error) + " Check your connection and reload the page.");
+  }
+}
+function askForDisc() {
+  $("setup-disc").hidden = false;
+  setupStatus("Waiting for your disc image.", 0.6);
+}
+async function takeDisc(file) {
+  if (!file) return;
+  show("setup", false); $("tabs").hidden = true; $("setup-disc").hidden = true;
+  try {
+    setupStatus("Reading your disc image…", 0.62);
+    const files = await DiscReader.gameFiles(file, (f) => setupStatus(`Reading the card tables… ${Math.round(f * 100)}%`, 0.62 + 0.3 * f));
+    py.FS.mkdirTree("/persist/game/DATA");
+    py.FS.writeFile("/persist/game/SLUS_014.11", files.slus);
+    py.FS.writeFile("/persist/game/DATA/WA_MRG.MRG", files.wa);
+    setupStatus("Saving them in this browser…", 0.94);
+    await persist();
+    await openGame();
+  } catch (error) {
+    setupStatus(pyMessage(error));
+    $("setup-disc").hidden = false;
+  }
+}
+$("disc-input").onchange = (e) => takeDisc(e.target.files[0]);
+$("disc-input-2").onchange = (e) => takeDisc(e.target.files[0]);
+
+async function openGame() {
+  setupStatus("Loading the cards and duelists…", 0.96);
+  await new Promise((r) => setTimeout(r, 30));
+  const opened = call("load_game");
+  cards = call("cards");
+  cardById = new Map(cards.map((c) => [c[0], c]));
+  artChanged = new Set(call("art_changed"));
+  await persist();
+  setupStatus("Ready.", 1);
+  setChip(opened.info);
+  $("tabs").hidden = false;
+  show("duelists", false); renderDuelists();
+  if (opened.notes && opened.notes.length) toast(opened.notes[0]);
+}
+function setChip(info) { $("mod-chip").textContent = info.name || info.id; $("mod-chip").hidden = false; }
+
+/* --- duelists ---------------------------------------------------------------- */
+function renderDuelists() {
+  duelistRows = call("duelists");
+  const q = $("duelist-search").value.trim().toLowerCase();
+  const rows = duelistRows.filter((d) => !q || d.name.toLowerCase().includes(q));
+  $("duelist-list").innerHTML = rows.map((d) => `
+    <button class="item" data-d="${d.id}">
+      <span class="main"><span class="name">${esc(d.name)}</span>
+        <span class="sub">${d.changed.length ? "Changed: " + d.changed.map((p) => ({ deck: "deck", pow: "S/A-POW", bcd: "B/C/D", tec: "S/A-TEC" }[p])).join(", ") : "As on the disc"}</span></span>
+      ${d.changed.length ? '<span class="dot" aria-label="changed"></span>' : ""}
+      <span class="chev">›</span>
+    </button>`).join("") || '<p class="item muted">No duelist by that name.</p>';
+}
+$("duelist-search").oninput = renderDuelists;
+$("duelist-list").onclick = (e) => {
+  const b = e.target.closest("[data-d]"); if (!b) return;
+  current.duelist = +b.dataset.d;
+  show("duelist", true); renderPool();
+};
+for (const b of document.querySelectorAll(".segments button")) {
+  b.onclick = () => { current.pool = b.dataset.pool; renderPool(); };
+}
+function renderPool(data) {
+  const d = duelistRows.find((x) => x.id === current.duelist);
+  $("duelist-name").textContent = d ? d.name : "";
+  for (const b of document.querySelectorAll(".segments button")) b.setAttribute("aria-pressed", b.dataset.pool === current.pool);
+  $("pool-about").textContent = POOL_ABOUT[current.pool];
+  data = data || call("pool", current.duelist, current.pool);
+  $("pool-summary").textContent = `${data.rows.length} card${data.rows.length === 1 ? "" : "s"}`;
+  $("pool-changed").hidden = !data.changed;
+  $("pool-revert").hidden = !data.changed;
+  const top = data.rows.length ? data.rows[0][1] : 1;
+  $("pool-list").innerHTML = data.rows.map(([cid, w]) => {
+    const c = cardById.get(cid);
+    const was = data.retail[String(cid)] || 0;
+    return `<button class="item" data-c="${cid}">
+      <span class="main"><span class="name">${esc(c ? c[1] : "Card " + cid)}</span>
+        <span class="sub">${esc(cardSub(c))}${was !== w ? (was ? " · was " + fmtPct(was) : " · new") : ""}</span>
+        <span class="bar"><i style="width:${Math.max(2, w * 100 / top)}%"></i></span></span>
+      <span class="end"><span class="pct">${fmtPct(w)}</span><span class="weight">${w}/${TOTAL}</span></span>
+    </button>`;
+  }).join("") || '<p class="item muted">No cards.</p>';
+}
+$("pool-list").onclick = (e) => {
+  const b = e.target.closest("[data-c]"); if (!b) return;
+  const data = call("pool", current.duelist, current.pool);
+  const row = data.rows.find((r) => r[0] === +b.dataset.c);
+  editChance(+b.dataset.c, row ? row[1] : 0, data.rows.length);
+};
+$("pool-revert").onclick = () => {
+  openSheet(`<h2>Revert this pool?</h2><p class="muted">It goes back to the cards and chances on the disc.</p>
+    <div class="row-buttons"><button class="btn" data-x="no">Keep my changes</button><button class="btn primary" data-x="yes">Revert</button></div>`,
+    (s) => s.onclick = async (e) => {
+      const x = e.target.closest("[data-x]"); if (!x) return;
+      closeSheet();
+      if (x.dataset.x === "yes") { renderPool(call("pool_revert", current.duelist, current.pool)); await persist(); toast("Back to the disc's pool."); }
+    });
+};
+$("pool-add").onclick = () => pickCard((cid) => {
+  const data = call("pool", current.duelist, current.pool);
+  const row = data.rows.find((r) => r[0] === cid);
+  editChance(cid, row ? row[1] : 0, data.rows.length, true);
+});
+
+/* The chance sheet: set one card's share; the others make room as the game does. */
+function editChance(cid, weight, count, adding) {
+  const c = cardById.get(cid);
+  const startPct = weight ? pct(weight) : Math.min(10, 100 / Math.max(1, count + 1));
+  openSheet(`
+    <h2>${esc(c ? c[1] : "Card " + cid)}</h2>
+    <p class="muted small">${esc(cardSub(c))}</p>
+    <p class="small">Chance in ${esc(({ deck: "the deck", pow: "S/A-POW drops", bcd: "B/C/D drops", tec: "S/A-TEC drops" })[current.pool])}. The other cards keep their proportions and shrink or grow to make room; all of them add up to ${TOTAL}.</p>
+    <div class="stepper">
+      <button class="btn" data-step="-1" aria-label="Less">−</button>
+      <input id="chance" inputmode="decimal" value="${startPct.toFixed(2)}" aria-label="Chance in percent" autofocus>
+      <button class="btn" data-step="1" aria-label="More">+</button>
+    </div>
+    <p class="muted small" id="chance-weight"></p>
+    <div class="row-buttons">
+      ${weight ? '<button class="btn danger" data-x="remove">Remove</button>' : ""}
+      <button class="btn primary" data-x="set">${adding && !weight ? "Add" : "Set chance"}</button>
+    </div>`, (s) => {
+    const input = s.querySelector("#chance");
+    const toWeight = () => Math.max(1, Math.min(TOTAL, Math.round((parseFloat(input.value.replace(",", ".")) || 0) * TOTAL / 100)));
+    const shown = () => { s.querySelector("#chance-weight").textContent = `Percent. That is ${toWeight()} of ${TOTAL}, about 1 in ${Math.max(1, Math.round(TOTAL / toWeight()))}.`; };
+    input.oninput = shown; shown();
+    s.onclick = async (e) => {
+      const step = e.target.closest("[data-step]");
+      if (step) {
+        const now = parseFloat(input.value.replace(",", ".")) || 0;
+        const by = now >= 10 ? 1 : now >= 1 ? 0.5 : 0.1;
+        input.value = Math.max(0.05, Math.min(100, now + by * +step.dataset.step)).toFixed(2); shown(); return;
+      }
+      const x = e.target.closest("[data-x]"); if (!x) return;
+      try {
+        const data = call("pool_set", current.duelist, current.pool, cid, x.dataset.x === "remove" ? 0 : toWeight());
+        closeSheet(); renderPool(data); await persist();
+        toast(x.dataset.x === "remove" ? "Removed." : "Chance set.");
+      } catch (_) { /* toast shown */ }
+    };
+  });
+}
+
+/* The card picker: search by name or number. */
+function pickCard(then) {
+  openSheet(`<h2>Add a card</h2>
+    <input class="search" id="pick-search" type="search" placeholder="Name or number" autocomplete="off" autofocus>
+    <div class="list" id="pick-list"></div>`, (s) => {
+    const list = s.querySelector("#pick-list"), search = s.querySelector("#pick-search");
+    const render = () => {
+      const q = search.value.trim().toLowerCase();
+      const found = cards.filter((c) => !q || String(c[0]) === q || c[1].toLowerCase().includes(q)).slice(0, 80);
+      list.innerHTML = found.map((c) => `<button class="item" data-c="${c[0]}"><span class="main"><span class="name">${esc(c[1])}</span><span class="sub">${esc(cardSub(c))}</span></span></button>`).join("")
+        || '<p class="item muted">No card matches.</p>';
+    };
+    search.oninput = render; render();
+    list.onclick = (e) => { const b = e.target.closest("[data-c]"); if (b) then(+b.dataset.c); };
+  });
+}
+
+/* --- card art ---------------------------------------------------------------- */
+const artUrls = new Map();
+function artUrl(cid, part, fresh) {
+  const key = cid + part;
+  if (!fresh && artUrls.has(key)) return artUrls.get(key);
+  if (artUrls.has(key)) URL.revokeObjectURL(artUrls.get(key));
+  let url = "";
+  try {
+    if (bridge.art_png(cid, part, "/tmp/shown.png")) url = URL.createObjectURL(new Blob([py.FS.readFile("/tmp/shown.png")], { type: "image/png" }));
+  } catch (error) { console.warn(error); }
+  artUrls.set(key, url);
+  return url;
+}
+let thumbObserver = null;
+function renderArtList() {
+  const q = $("art-search").value.trim().toLowerCase();
+  $("art-filter").textContent = artChangedOnly ? "Show all cards" : "Show changed only";
+  $("art-filter").setAttribute("aria-pressed", artChangedOnly);
+  const found = cards.filter((c) => (!artChangedOnly || artChanged.has(c[0])) && (!q || String(c[0]) === q || c[1].toLowerCase().includes(q)));
+  const shown = found.slice(0, 150);
+  $("art-list").innerHTML = shown.map((c) => `<button class="item" data-c="${c[0]}">
+      <img class="thumb" data-thumb="${c[0]}" alt="">
+      <span class="main"><span class="name">${esc(c[1])}</span><span class="sub">${esc(cardSub(c))}</span></span>
+      ${artChanged.has(c[0]) ? '<span class="dot" aria-label="changed"></span>' : ""}<span class="chev">›</span></button>`).join("")
+    + (found.length > shown.length ? `<p class="item muted small">${found.length - shown.length} more: search to narrow it down.</p>` : "")
+    || `<p class="item muted">${artChangedOnly ? "No pictures changed yet." : "No card matches."}</p>`;
+  if (thumbObserver) thumbObserver.disconnect();
+  thumbObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const img = entry.target; thumbObserver.unobserve(img);
+      img.src = artUrl(+img.dataset.thumb, "thumbnail");
+    }
+  }, { rootMargin: "200px" });
+  for (const img of document.querySelectorAll("[data-thumb]")) thumbObserver.observe(img);
+}
+$("art-search").oninput = renderArtList;
+$("art-filter").onclick = () => { artChangedOnly = !artChangedOnly; renderArtList(); };
+$("art-list").onclick = (e) => {
+  const b = e.target.closest("[data-c]"); if (!b) return;
+  current.card = +b.dataset.c; show("card", true); renderCard();
+};
+function renderCard(fresh) {
+  const c = cardById.get(current.card);
+  $("card-name").textContent = c ? c[1] : "";
+  $("card-stats").innerHTML = c ? [`#${c[0]}`, c[2], c[6], c[5] ? `Lv ${c[5]}` : "", c[2] !== "Magic" && c[2] !== "Trap" && c[2] !== "Ritual" && c[2] !== "Equip" ? `${c[3]} / ${c[4]}` : ""]
+    .filter(Boolean).map((t) => `<span>${esc(t)}</span>`).join("<span>·</span>") : "";
+  $("card-art").src = artUrl(current.card, "art", fresh);
+  $("card-thumb").src = artUrl(current.card, "thumbnail", fresh);
+  const st = call("art_status", current.card);
+  $("card-from").textContent = st.art.changed ? "Your picture. The thumbnail on the left is what the hand and field show." : "The picture on the disc.";
+  $("art-revert").hidden = !st.art.changed;
+}
+/* An image file as the card's picture: cut to 102:96 from the middle and at
+   most 4x (408 x 384) in the browser, then handed to the editor as a PNG. */
+async function cardPicture(file) {
+  const bitmap = await createImageBitmap(file);
+  const ratio = 102 / 96;
+  let sw = bitmap.width, sh = bitmap.height;
+  if (sw / sh > ratio) sw = Math.round(sh * ratio); else sh = Math.round(sw / ratio);
+  const sx = Math.round((bitmap.width - sw) / 2), sy = Math.round((bitmap.height - sh) / 2);
+  const w = Math.min(408, sw), h = Math.round(w / ratio);
+  const canvas = document.createElement("canvas"); canvas.width = w; canvas.height = h;
+  const g = canvas.getContext("2d");
+  g.fillStyle = "#000"; g.fillRect(0, 0, w, h);
+  g.imageSmoothingQuality = "high";
+  g.drawImage(bitmap, sx, sy, sw, sh, 0, 0, w, h);
+  const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+  return new Uint8Array(await blob.arrayBuffer());
+}
+$("art-input").onchange = async (e) => {
+  const file = e.target.files[0]; e.target.value = "";
+  if (!file) return;
+  busy("Setting the picture…");
+  try {
+    py.FS.writeFile("/tmp/upload.png", await cardPicture(file));
+    await new Promise((r) => setTimeout(r, 20));
+    call("art_set", current.card, "art", "/tmp/upload.png");
+    artChanged.add(current.card);
+    renderCard(true); await persist();
+    toast("Picture replaced.");
+  } catch (error) {
+    if (!String(error).includes("PythonError")) toast("That image could not be read. Try a PNG or JPEG.", true);
+  } finally { busy(""); }
+};
+$("art-revert").onclick = async () => {
+  call("art_revert", current.card, "art");
+  artChanged.delete(current.card);
+  renderCard(true); await persist(); toast("Back to the original picture.");
+};
+
+/* --- mod --------------------------------------------------------------------- */
+function renderMod() {
+  const info = call("info");
+  $("mod-name").value = info.name; $("mod-id").value = info.id; $("mod-author").value = info.author;
+  $("mod-version").value = info.version; $("mod-description").value = info.description;
+  const found = call("issues");
+  $("issues").innerHTML = found.length
+    ? found.map((i) => `<div class="issue ${i.level}"><strong>${esc(i.area)}</strong> · ${esc(i.where)}<br>${esc(i.message)}</div>`).join("")
+    : '<p class="muted small">No problems found.</p>';
+}
+$("mod-save").onclick = async () => {
+  try {
+    const info = call("set_info", JSON.stringify({ name: $("mod-name").value, id: $("mod-id").value, author: $("mod-author").value,
+      version: $("mod-version").value, description: $("mod-description").value }));
+    setChip(info); await persist(); renderMod(); toast("Saved.");
+  } catch (_) {}
+};
+$("export").onclick = async () => {
+  const errors = call("issues").filter((i) => i.level === "error");
+  if (errors.length) { toast("Fix the problems under Checks first.", true); return; }
+  const name = call("export_zip", "/tmp/export.zip");
+  const file = new File([py.FS.readFile("/tmp/export.zip")], name, { type: "application/zip" });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+  } catch (error) { if (error && error.name === "AbortError") return; }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+};
+$("import-input").onchange = async (e) => {
+  const file = e.target.files[0]; e.target.value = "";
+  if (!file) return;
+  busy("Opening the mod…");
+  try {
+    py.FS.writeFile("/tmp/import.zip", new Uint8Array(await file.arrayBuffer()));
+    const opened = call("import_zip", "/tmp/import.zip");
+    artUrls.clear(); artChanged = new Set(call("art_changed"));
+    setChip(opened.info); await persist(); renderMod();
+    toast(opened.notes.length ? opened.notes[0] : `Opened ${opened.info.name}.`);
+  } catch (_) {} finally { busy(""); }
+};
+$("new-mod").onclick = () => {
+  openSheet(`<h2>Start a new mod?</h2><p class="muted">Everything in the one you're editing is thrown away. Export it first to keep it.</p>
+    <div class="row-buttons"><button class="btn" data-x="no">Cancel</button><button class="btn danger" data-x="yes">Start over</button></div>`,
+    (s) => s.onclick = async (e) => {
+      const x = e.target.closest("[data-x]"); if (!x) return;
+      closeSheet();
+      if (x.dataset.x === "yes") { setChip(call("new_mod")); artUrls.clear(); artChanged = new Set(); await persist(); renderMod(); toast("New mod started."); }
+    });
+};
+
+start();
+</script>
+</body>
+</html>

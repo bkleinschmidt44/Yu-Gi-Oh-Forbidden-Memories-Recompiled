@@ -1,0 +1,47 @@
+name: web-editor
+
+# The Forbidden Workshop web editor (tools/web_editor): the FM Editor engine
+# run in the browser by Pyodide. Built into the gh-pages branch, which
+# GitHub Pages serves (Settings > Pages > Deploy from a branch > gh-pages).
+on:
+  push:
+    branches: [ios]
+    paths:
+      - 'tools/web_editor/**'
+      - 'tools/pc/fm_editor/**'
+      - 'tools/pc/text_listing.py'
+      - 'tools/pc/hd_recipes/**'
+      - 'tools/pc/package_ios.py'
+      - '.github/workflows/web-editor.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: web-editor
+  cancel-in-progress: true
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Engine checks
+        run: |
+          cd tools/pc
+          python -m unittest fm_editor.tests.test_data fm_editor.tests.test_art
+      - name: Build the site
+        run: python tools/web_editor/build_site.py "$RUNNER_TEMP/site"
+      - name: Publish to gh-pages
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          cd "$RUNNER_TEMP/site"
+          git init -q -b gh-pages
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "Forbidden Workshop from ${GITHUB_SHA:0:7}"
+          git push -qf "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
