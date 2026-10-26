@@ -1,0 +1,1265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Forbidden Workshop</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Workshop">
+<meta name="theme-color" content="#0e1320">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus+SC&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one column, the size of a phone; a bar of tabs at the bottom, views
+   that push in from lists, and a sheet that rises for every edit.
+   Look: obsidian and lapis with gold leaf, the tomb the game opens in. */
+:root {
+  --ink: #0e1320;
+  --panel: #161d2d;
+  --raise: #1e2740;
+  --line: #2b3652;
+  --sand: #ece0c4;
+  --muted: #9ba4b9;
+  --gold: #d9ab4c;
+  --gold-deep: #9c7426;
+  --lapis: #4c78e0;
+  --danger: #e36c5d;
+  --ok: #73c7a0;
+  --display: "Marcellus SC", "Times New Roman", serif;
+  --body: "Source Sans 3", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --tabs-h: 58px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--ink); color: var(--sand);
+  font: 16px/1.45 var(--body); -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+button, input, textarea { font: inherit; color: inherit; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.top {
+  position: sticky; top: 0; z-index: 5;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+  background: color-mix(in srgb, var(--ink) 88%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 12px; min-height: 52px;
+}
+.top h1 { font: 22px/1.1 var(--display); letter-spacing: .04em; margin: 0; color: var(--gold); flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.back { background: none; border: 0; color: var(--gold); padding: 6px 4px; font-weight: 600; cursor: pointer; }
+.chip { font-size: 13px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px;
+  max-width: 45%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+main {
+  padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(var(--tabs-h) + env(safe-area-inset-bottom, 0px) + 24px) max(16px, env(safe-area-inset-left, 0px));
+  max-width: 720px; margin: 0 auto;
+}
+section { display: flex; flex-direction: column; gap: 16px; }
+h2 { font: 26px/1.15 var(--display); margin: 4px 0 0; letter-spacing: .02em; text-wrap: balance; }
+h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: 8px 0 0; font-weight: 700; }
+p { margin: 0; max-width: 62ch; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; }
+
+.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  padding: 0 max(8px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(8px, env(safe-area-inset-left, 0px));
+  background: var(--panel); border-top: 1px solid var(--line);
+}
+.tabs button {
+  height: var(--tabs-h); background: none; border: 0; cursor: pointer;
+  color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .04em;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+}
+.tabs button svg { width: 24px; height: 24px; }
+.tabs button[aria-selected="true"] { color: var(--gold); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 46px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--raise); font-weight: 600; cursor: pointer; text-align: center;
+}
+.btn.primary { background: linear-gradient(180deg, var(--gold), var(--gold-deep)); color: #1b1408; border-color: transparent; }
+.btn.danger { color: var(--danger); }
+.btn.wide { width: 100%; }
+.btn:disabled { opacity: .5; }
+.stack { display: grid; gap: 10px; }
+.row-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+.row-buttons .btn { flex: 1 1 140px; }
+label.file { position: relative; overflow: hidden; }
+label.file input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+.search {
+  width: 100%; min-height: 46px; padding: 0 14px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--panel);
+}
+.list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--panel); }
+.item {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px;
+  background: none; border: 0; border-top: 1px solid var(--line); text-align: left; cursor: pointer; min-height: 56px;
+}
+.item:first-child { border-top: 0; }
+.item:active { background: var(--raise); }
+.item .main { flex: 1; min-width: 0; }
+.item .name { font-weight: 600; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .sub { font-size: 13px; color: var(--muted); display: block; }
+.item .end { text-align: right; flex: none; }
+.item .pct { font: 15px var(--mono); color: var(--sand); display: block; }
+.item .weight { font: 11px var(--mono); color: var(--muted); display: block; }
+.item .thumb { width: 40px; height: 32px; border-radius: 4px; background: var(--raise); image-rendering: pixelated; flex: none; object-fit: cover; }
+.bar { display: block; height: 3px; background: var(--line); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--gold); }
+.pill { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px;
+  border-radius: 999px; background: color-mix(in srgb, var(--gold) 22%, transparent); color: var(--gold); white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex: none; }
+.chev { color: var(--muted); flex: none; }
+
+.segments { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 12px; padding: 3px; gap: 3px; }
+.segments.three { grid-template-columns: repeat(3, 1fr); }
+.segments.two { grid-template-columns: repeat(2, 1fr); }
+.item.side { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.item.side .count { font: 13px var(--mono); color: var(--gold); white-space: nowrap; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { border: 1px solid var(--line); background: var(--ink); color: var(--muted); border-radius: 999px;
+  padding: 6px 12px; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 34px; }
+.chips button[aria-pressed="true"] { border-color: var(--gold); color: var(--ink); background: var(--gold); }
+.filter-count { position: sticky; top: -10px; z-index: 1; background: var(--panel); padding: 8px 0; font-weight: 600; }
+.filter-count small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.preview { display: grid; gap: 10px; }
+.preview .headline { font: 22px/1.2 var(--display); color: var(--gold); }
+.mini { font-size: 14px; padding: 8px 12px; border-top: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; }
+.mini:first-child { border-top: 0; }
+.mini .main { flex: 1; min-width: 0; }
+.x { background: none; border: 0; color: var(--muted); font-size: 20px; padding: 0 6px; cursor: pointer; min-height: 40px; }
+.segments button { min-height: 38px; border: 0; border-radius: 9px; background: none; color: var(--muted);
+  font-size: 13px; font-weight: 700; cursor: pointer; }
+.segments button[aria-pressed="true"] { background: var(--raise); color: var(--gold); }
+.summary { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.summary .grow { flex: 1; min-width: 0; }
+
+.card-view { display: grid; gap: 14px; }
+.art-frame { background: radial-gradient(circle at 50% 40%, #2a2414, #120e07); border: 1px solid var(--gold-deep);
+  border-radius: 14px; padding: 14px; display: grid; place-items: center; }
+.art-frame img { width: min(100%, 408px); aspect-ratio: 102 / 96; image-rendering: pixelated; border-radius: 4px; background: #000; }
+.thumb-row { display: flex; align-items: center; gap: 12px; }
+.thumb-row img { width: 80px; aspect-ratio: 40 / 32; image-rendering: pixelated; border-radius: 4px; background: #000; }
+.stats { display: flex; gap: 8px; flex-wrap: wrap; font: 13px var(--mono); color: var(--muted); }
+
+.form { display: grid; gap: 12px; }
+.form label { display: grid; gap: 6px; font-size: 14px; color: var(--muted); font-weight: 600; }
+.label { font-size: 14px; font-weight: 700; color: var(--sand); margin: 4px 0 -6px; }
+.form select { width: 100%; min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--sand); }
+.form .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.form, .sheet, .preview, #rule-makes { grid-template-columns: minmax(0, 1fr); }
+#rule-makes { display: grid; gap: 10px; }
+.form .check { display: flex; align-items: center; gap: 10px; font-weight: 400; color: var(--sand); }
+.form .check input { width: 22px; min-height: 22px; height: 22px; accent-color: var(--gold); }
+.field-row { display: flex; justify-content: space-between; gap: 12px; padding: 11px 14px; border-top: 1px solid var(--line); font-size: 15px; }
+.field-row:first-child { border-top: 0; }
+.field-row b { color: var(--muted); font-weight: 600; }
+.field-row span { text-align: right; min-width: 0; overflow-wrap: anywhere; }
+.field-row.text span { white-space: pre-line; text-align: left; }
+.field-row.text { flex-direction: column; gap: 4px; }
+.fusion { font-size: 15px; }
+.fusion .arrow { color: var(--gold); padding: 0 4px; }
+.pill.new { background: color-mix(in srgb, var(--lapis) 30%, transparent); color: #a9c1ff; }
+.pill.removed { background: color-mix(in srgb, var(--danger) 25%, transparent); color: var(--danger); }
+.form input, .form textarea { width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--sand); font-weight: 400; }
+.form textarea { min-height: 80px; resize: vertical; }
+.issue { padding: 10px 12px; border-radius: 10px; background: var(--panel); border-left: 3px solid var(--gold); font-size: 14px; }
+.issue.error { border-left-color: var(--danger); }
+.steps { margin: 0; padding-left: 22px; display: grid; gap: 6px; max-width: 62ch; }
+.note { padding: 12px 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+
+/* setup */
+.hero { padding: 28px 4px 8px; display: grid; gap: 14px; }
+.hero .eye { width: 64px; height: 64px; color: var(--gold); }
+.hero h2 { font-size: 32px; color: var(--gold); }
+.progress { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .2s; }
+.status { font-size: 14px; color: var(--muted); min-height: 1.4em; }
+
+/* sheet */
+.scrim { position: fixed; inset: 0; background: rgba(5, 8, 15, .6); z-index: 20; }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; max-height: 88vh; overflow: auto;
+  background: var(--panel); border-top: 1px solid var(--gold-deep); border-radius: 18px 18px 0 0;
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 18px) max(16px, env(safe-area-inset-left, 0px));
+  display: grid; gap: 14px; max-width: 720px; margin: 0 auto;
+}
+.sheet .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line); justify-self: center; }
+.stepper { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; align-items: center; }
+.stepper input { text-align: center; font: 28px var(--mono); min-height: 56px; border-radius: 12px; border: 1px solid var(--line); background: var(--ink); color: var(--sand); width: 100%; }
+.stepper .btn { min-height: 56px; padding: 0; font-size: 22px; }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 62px);
+  z-index: 30; background: var(--sand); color: var(--ink); padding: 10px 16px; border-radius: 12px; font-weight: 600;
+  font-size: 14px; max-width: calc(100% - 32px); box-shadow: 0 8px 30px rgba(0,0,0,.4); }
+.toast.error { background: var(--danger); color: #fff; }
+.busy { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: rgba(5, 8, 15, .45); }
+.busy span { background: var(--panel); border: 1px solid var(--line); padding: 14px 18px; border-radius: 12px; font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="back" id="back" hidden aria-label="Back">‹ Back</button>
+  <h1 id="title">Forbidden Workshop</h1>
+  <span class="chip" id="mod-chip" hidden></span>
+</header>
+
+<main>
+  <!-- first run: the editor starts, then the disc -->
+  <section id="v-setup">
+    <div class="hero">
+      <svg class="eye" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 30c8-10 17-15 26-15s18 5 26 15c-8 10-17 15-26 15S14 40 6 30z"/>
+        <circle cx="32" cy="30" r="7"/><path d="M28 45l-4 13M36 45c2 4 6 7 11 7M14 38l-6 6"/>
+      </svg>
+      <h2>Forbidden Workshop</h2>
+      <p>Make your own mods for the iPhone port of Yu-Gi-Oh! Forbidden Memories: opponents' decks, what they drop, and card pictures.</p>
+    </div>
+    <div class="progress" aria-hidden="true"><i id="setup-bar"></i></div>
+    <p class="status" id="setup-status" role="status">Starting the editor…</p>
+    <div id="setup-disc" hidden class="card-view">
+      <p>Choose your own Forbidden Memories (USA) disc image, the <strong>.bin</strong> of its .bin/.cue pair. It stays on your phone: the workshop reads the card tables out of it and keeps them in this browser.</p>
+      <label class="btn primary wide file">Choose your .bin<input type="file" id="disc-input"></label>
+      <p class="muted small">The game's copy is in Files › On My iPhone › Forbidden Memories › game.</p>
+    </div>
+  </section>
+
+  <!-- duelists -->
+  <section id="v-duelists" hidden>
+    <h2>Duelists</h2>
+    <p class="muted">Change the cards each opponent builds a deck from, and the cards they drop when you win.</p>
+    <input class="search" id="duelist-search" type="search" placeholder="Search duelists" autocomplete="off">
+    <div class="list" id="duelist-list"></div>
+  </section>
+
+  <section id="v-duelist" hidden>
+    <h2 id="duelist-name"></h2>
+    <div class="segments" role="group" aria-label="Pool">
+      <button data-pool="deck" aria-pressed="true">Deck</button>
+      <button data-pool="pow" aria-pressed="false">S/A-POW</button>
+      <button data-pool="bcd" aria-pressed="false">B/C/D</button>
+      <button data-pool="tec" aria-pressed="false">S/A-TEC</button>
+    </div>
+    <p class="muted small" id="pool-about"></p>
+    <div class="summary">
+      <span class="grow muted small" id="pool-summary"></span>
+      <span class="pill" id="pool-changed" hidden>Changed</span>
+      <button class="btn" id="pool-revert" hidden>Revert</button>
+    </div>
+    <button class="btn primary" id="pool-add">Add a card</button>
+    <div class="list" id="pool-list"></div>
+  </section>
+
+  <!-- cards -->
+  <section id="v-cards" hidden>
+    <h2>Cards</h2>
+    <p class="muted">Change any card's picture, stats and fusions, or make new cards past the disc's 722.</p>
+    <button class="btn primary" id="card-new">New card</button>
+    <input class="search" id="card-search" type="search" placeholder="Search by name or number" autocomplete="off">
+    <div class="segments three" role="group" aria-label="Show">
+      <button data-show="all" aria-pressed="true">All</button>
+      <button data-show="changed" aria-pressed="false">Changed</button>
+      <button data-show="new" aria-pressed="false">New</button>
+    </div>
+    <div class="list" id="card-list"></div>
+  </section>
+
+  <section id="v-card" hidden>
+    <div class="summary"><h2 id="card-name" class="grow"></h2><span class="pill" id="card-pill" hidden></span></div>
+    <div class="stats" id="card-stats"></div>
+    <p class="note" id="card-base" hidden></p>
+    <div class="card-view">
+      <div class="art-frame"><img id="card-art" alt=""></div>
+      <div class="thumb-row"><img id="card-thumb" alt=""><p class="muted small" id="card-from"></p></div>
+      <div class="row-buttons">
+        <label class="btn primary file">Replace picture<input type="file" accept="image/*" id="art-input"></label>
+        <button class="btn" id="art-revert" hidden>Use the original</button>
+      </div>
+      <p class="muted small">Pictures are 102 × 96. A different shape is cut from the middle; up to 4× that size is kept for the game's sharper resolutions.</p>
+    </div>
+
+    <h3>Details</h3>
+    <div class="list" id="card-fields"></div>
+    <button class="btn" id="card-edit">Edit name, text and stats</button>
+    <div id="card-issues" class="card-view"></div>
+
+    <h3>Fusions</h3>
+    <p class="muted small" id="fusion-about"></p>
+    <button class="btn primary" id="fusion-add">Add a fusion</button>
+    <p class="label">Made from</p>
+    <div class="list" id="fusion-makes"></div>
+    <p class="label">Fuses with</p>
+    <input class="search" id="fusion-search" type="search" placeholder="Search the other card or the result" autocomplete="off">
+    <div class="list" id="fusion-material"></div>
+
+    <div class="stack">
+      <button class="btn" id="card-revert" hidden>Undo changes to this card</button>
+      <button class="btn danger" id="card-delete" hidden>Delete this card</button>
+    </div>
+  </section>
+
+  <!-- fusions in bulk -->
+  <section id="v-fusions" hidden>
+    <h2>Fusion rules</h2>
+    <p class="muted">Make or remove many fusions at once: pick the cards on each side by type, attribute, ATK, words in the name or your own groups, then what they make.</p>
+    <button class="btn primary" id="rule-new">New fusion rule</button>
+    <h3>Rules applied</h3>
+    <div class="list" id="rule-history"></div>
+    <h3>Your groups</h3>
+    <p class="muted small">Groups are your own lists of cards, such as Girls or Jars, to use in rules.</p>
+    <button class="btn" id="group-new">New group</button>
+    <div class="list" id="group-list"></div>
+  </section>
+
+  <section id="v-rule" hidden>
+    <div class="segments two" role="group" aria-label="Rule">
+      <button data-mode="add" aria-pressed="true">Add fusions</button>
+      <button data-mode="remove" aria-pressed="false">Remove fusions</button>
+    </div>
+    <p class="label">Card A</p>
+    <button class="item side" id="side-a"></button>
+    <p class="label">Card B</p>
+    <button class="item side" id="side-b"></button>
+    <div id="rule-makes">
+      <p class="label">They make</p>
+      <div class="segments two" role="group" aria-label="Result">
+        <button data-result="ladder" aria-pressed="true">Weakest that beats both</button>
+        <button data-result="card" aria-pressed="false">One card</button>
+      </div>
+      <p class="muted small" id="result-about"></p>
+      <button class="item side" id="side-result"></button>
+    </div>
+    <div class="form">
+      <label class="check" id="opt-stronger-row"><input type="checkbox" id="opt-stronger" checked> Only when the result is stronger than both</label>
+      <label class="check" id="opt-overwrite-row"><input type="checkbox" id="opt-overwrite"> Replace pairs that already fuse</label>
+      <label class="check"><input type="checkbox" id="opt-self"> Let a card fuse with a copy of itself</label>
+    </div>
+    <div class="preview" id="rule-preview" role="status"></div>
+    <button class="btn primary wide" id="rule-apply" disabled>Apply</button>
+  </section>
+
+  <section id="v-group" hidden>
+    <div class="form">
+      <label>Group name<input id="group-name" autocomplete="off"></label>
+    </div>
+    <div class="row-buttons">
+      <button class="btn" id="group-add-one">Add a card</button>
+      <button class="btn" id="group-add-filter">Add cards by filter</button>
+    </div>
+    <p class="label" id="group-count"></p>
+    <div class="list" id="group-cards"></div>
+    <button class="btn danger" id="group-delete">Delete this group</button>
+  </section>
+
+  <!-- the mod -->
+  <section id="v-mod" hidden>
+    <h2>Your mod</h2>
+    <p class="muted" id="mod-summary"></p>
+    <div class="form">
+      <label>Name<input id="mod-name" autocomplete="off"></label>
+      <label>Folder name<input id="mod-id" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+      <p class="muted small">New cards are saved under this name. Change it before you play with the mod, not after: a save that holds new cards looks for them by it.</p>
+      <label>Author<input id="mod-author" autocomplete="off"></label>
+      <label>Version<input id="mod-version" autocomplete="off"></label>
+      <label>Description<textarea id="mod-description"></textarea></label>
+      <button class="btn" id="mod-save">Save details</button>
+    </div>
+
+    <h3>Checks</h3>
+    <div id="issues" class="card-view"></div>
+
+    <h3>Put it in the game</h3>
+    <button class="btn primary wide" id="export">Export mod (.zip)</button>
+    <ol class="steps small">
+      <li>Save the .zip to Files.</li>
+      <li>In Files, tap it once to unpack it into a folder.</li>
+      <li>Move that folder into On My iPhone › Forbidden Memories › mods.</li>
+      <li>In the game, open MENU › Game › Mods and turn it on.</li>
+    </ol>
+
+    <h3>Other mods</h3>
+    <div class="row-buttons">
+      <label class="btn file">Open a mod .zip<input type="file" accept=".zip,application/zip" id="import-input"></label>
+      <button class="btn danger" id="new-mod">Start a new mod</button>
+    </div>
+
+    <h3>Game files</h3>
+    <label class="btn file">Choose a different .bin<input type="file" id="disc-input-2"></label>
+    <p class="note">Your work is saved in this browser as you go. Safari can clear a site's data after weeks unused, so add this page to your Home Screen (Share › Add to Home Screen) and export a .zip now and then to keep a copy.</p>
+  </section>
+</main>
+
+<nav class="tabs" id="tabs" hidden>
+  <button data-tab="duelists" aria-selected="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.8a3.3 3.3 0 0 1 0 6.4M18 14.6c1.8.7 3 2.5 3.5 5.4"/></svg>
+    Duelists</button>
+  <button data-tab="cards" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2.5" width="14" height="19" rx="1.5"/><rect x="7.5" y="5.5" width="9" height="8"/><path d="M7.5 17h9"/></svg>
+    Cards</button>
+  <button data-tab="fusions" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="9" r="5"/><circle cx="16" cy="9" r="5"/><path d="M12 15v6M9 18l3 3 3-3"/></svg>
+    Fusions</button>
+  <button data-tab="mod" aria-selected="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/></svg>
+    Mod</button>
+</nav>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast" hidden role="status"></div>
+<div class="busy" id="busy" hidden><span id="busy-text">Working…</span></div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.29.3/full/pyodide.js"></script>
+<script src="disc-reader.js"></script>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const POOL_ABOUT = {
+  deck: "The cards this duelist builds a 40-card deck from. A card with a bigger chance turns up more often.",
+  pow: "Dropped when you win with an S or A rank by power (POW).",
+  bcd: "Dropped when you win with a B, C or D rank.",
+  tec: "Dropped when you win with an S or A rank by technique (TEC)."
+};
+const TOTAL = 2048;
+let py, bridge, cards = [], cardById = new Map(), duelistRows = [];
+let view = "setup", tab = "duelists", stack = [];
+let current = { duelist: 0, pool: "deck", card: 0 };
+let cardShow = "all", choices = null;
+
+/* --- small helpers --------------------------------------------------------- */
+function toast(text, error) {
+  const t = $("toast");
+  t.textContent = text; t.classList.toggle("error", !!error); t.hidden = false;
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => (t.hidden = true), error ? 5200 : 2600);
+}
+function busy(text) { $("busy-text").textContent = text || "Working…"; $("busy").hidden = !text; }
+function pyMessage(error) {
+  const lines = String(error && error.message || error).split("\n").map((l) => l.trim()).filter(Boolean);
+  const last = lines[lines.length - 1] || "Something went wrong.";
+  return last.replace(/^[A-Za-z]*Error: /, "");
+}
+/* A bridge call: its JSON answer, or a toast with what went wrong. */
+function call(name, ...args) {
+  try {
+    const out = bridge[name](...args);
+    return typeof out === "string" && (out.startsWith("{") || out.startsWith("[")) ? JSON.parse(out) : out;
+  } catch (error) {
+    toast(pyMessage(error), true);
+    throw error;
+  }
+}
+const pct = (w) => (w * 100 / TOTAL);
+const fmtPct = (w) => { const p = pct(w); return (p >= 10 ? p.toFixed(1) : p >= 1 ? p.toFixed(2) : p.toFixed(2)) + "%"; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const isMonsterKind = (kind) => !["Magic", "Trap", "Ritual", "Equip"].includes(kind);
+function cardSub(c) {
+  if (!c) return "";
+  return `#${c[0]} · ${c[2]}` + (isMonsterKind(c[2]) ? ` · ${c[3]}/${c[4]}` : "");
+}
+const cardName = (cid) => { const c = cardById.get(cid); return c ? c[1] : cid ? "Card " + cid : "nothing"; };
+/* The card list again after a change: names, stats and what is new or changed. */
+function reloadCards() {
+  cards = call("cards");
+  cardById = new Map(cards.map((c) => [c[0], c]));
+}
+
+/* --- storage: IndexedDB through Pyodide's IDBFS ------------------------------ */
+let syncing = null, syncAgain = false;
+function persist() {
+  if (syncing) { syncAgain = true; return syncing; }
+  syncing = new Promise((resolve) => py.FS.syncfs(false, (err) => { if (err) console.warn(err); resolve(); }))
+    .then(() => { syncing = null; if (syncAgain) { syncAgain = false; return persist(); } });
+  return syncing;
+}
+function restore() { return new Promise((resolve) => py.FS.syncfs(true, (err) => { if (err) console.warn(err); resolve(); })); }
+
+/* --- navigation ------------------------------------------------------------- */
+const TITLES = { duelists: "Duelists", duelist: "Duelists", cards: "Cards", card: "Cards", fusions: "Fusions", rule: "Fusion rule", group: "Group", mod: "Mod", setup: "Forbidden Workshop" };
+function show(name, push) {
+  if (push) stack.push(view); else stack = [];
+  for (const s of document.querySelectorAll("main > section")) s.hidden = s.id !== "v-" + name;
+  view = name;
+  $("back").hidden = stack.length === 0;
+  $("title").textContent = TITLES[name] || "Forbidden Workshop";
+  window.scrollTo(0, 0);
+}
+$("back").onclick = () => { const to = stack.pop(); if (to) { show(to, false); refresh(to); } };
+function refresh(name) {
+  if (name === "duelists") renderDuelists();
+  if (name === "cards") renderCardList();
+  if (name === "card") renderCard();
+  if (name === "fusions") renderFusionTab();
+  if (name === "mod") renderMod();
+}
+for (const b of document.querySelectorAll(".tabs button")) {
+  b.onclick = () => {
+    tab = b.dataset.tab;
+    for (const o of document.querySelectorAll(".tabs button")) o.setAttribute("aria-selected", o === b);
+    show(tab, false); refresh(tab);
+  };
+}
+
+/* --- sheet ----------------------------------------------------------------- */
+function openSheet(html, wire) {
+  const sheet = $("sheet");
+  sheet.innerHTML = '<div class="grab"></div>' + html;
+  sheet.hidden = false; $("scrim").hidden = false;
+  wire(sheet);
+  const first = sheet.querySelector("[autofocus]");
+  if (first) setTimeout(() => first.focus(), 60);
+}
+function closeSheet() { $("sheet").hidden = true; $("scrim").hidden = true; $("sheet").innerHTML = ""; }
+$("scrim").onclick = closeSheet;
+
+/* --- setup ------------------------------------------------------------------ */
+function setupStatus(text, fraction) {
+  $("setup-status").textContent = text;
+  if (fraction != null) $("setup-bar").style.width = Math.round(fraction * 100) + "%";
+}
+async function start() {
+  try {
+    setupStatus("Starting the editor (about 10 MB the first time)…", 0.05);
+    py = await loadPyodide();
+    setupStatus("Unpacking the editor…", 0.45);
+    const engine = await fetch("engine.zip", { cache: "no-cache" });
+    if (!engine.ok) throw new Error("Could not download the editor's files.");
+    py.unpackArchive(await engine.arrayBuffer(), "zip", { extractDir: "/app" });
+    py.FS.mkdirTree("/persist");
+    py.FS.mount(py.FS.filesystems.IDBFS, {}, "/persist");
+    await restore();
+    py.runPython("import sys; sys.path[:0] = ['/app/tools/pc', '/app/tools/web_editor']\nimport bridge\nbridge.set_root('/persist')");
+    bridge = py.globals.get("bridge");
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    setupStatus("Ready.", 0.6);
+    if (bridge.has_game()) await openGame();
+    else askForDisc();
+  } catch (error) {
+    setupStatus("The editor could not start: " + pyMessage(error) + " Check your connection and reload the page.");
+  }
+}
+function askForDisc() {
+  $("setup-disc").hidden = false;
+  setupStatus("Waiting for your disc image.", 0.6);
+}
+async function takeDisc(file) {
+  if (!file) return;
+  show("setup", false); $("tabs").hidden = true; $("setup-disc").hidden = true;
+  try {
+    setupStatus("Reading your disc image…", 0.62);
+    const files = await DiscReader.gameFiles(file, (f) => setupStatus(`Reading the card tables… ${Math.round(f * 100)}%`, 0.62 + 0.3 * f));
+    py.FS.mkdirTree("/persist/game/DATA");
+    py.FS.writeFile("/persist/game/SLUS_014.11", files.slus);
+    py.FS.writeFile("/persist/game/DATA/WA_MRG.MRG", files.wa);
+    setupStatus("Saving them in this browser…", 0.94);
+    await persist();
+    await openGame();
+  } catch (error) {
+    setupStatus(pyMessage(error));
+    $("setup-disc").hidden = false;
+  }
+}
+$("disc-input").onchange = (e) => takeDisc(e.target.files[0]);
+$("disc-input-2").onchange = (e) => takeDisc(e.target.files[0]);
+
+async function openGame() {
+  setupStatus("Loading the cards and duelists…", 0.96);
+  await new Promise((r) => setTimeout(r, 30));
+  const opened = call("load_game");
+  cards = call("cards");
+  cardById = new Map(cards.map((c) => [c[0], c]));
+  choices = call("card_choices");
+  await persist();
+  setupStatus("Ready.", 1);
+  setChip(opened.info);
+  $("tabs").hidden = false;
+  show("duelists", false); renderDuelists();
+  if (opened.notes && opened.notes.length) toast(opened.notes[0]);
+}
+function setChip(info) { $("mod-chip").textContent = info.name || info.id; $("mod-chip").hidden = false; }
+
+/* --- duelists ---------------------------------------------------------------- */
+function renderDuelists() {
+  duelistRows = call("duelists");
+  const q = $("duelist-search").value.trim().toLowerCase();
+  const rows = duelistRows.filter((d) => !q || d.name.toLowerCase().includes(q));
+  $("duelist-list").innerHTML = rows.map((d) => `
+    <button class="item" data-d="${d.id}">
+      <span class="main"><span class="name">${esc(d.name)}</span>
+        <span class="sub">${d.changed.length ? "Changed: " + d.changed.map((p) => ({ deck: "deck", pow: "S/A-POW", bcd: "B/C/D", tec: "S/A-TEC" }[p])).join(", ") : "As on the disc"}</span></span>
+      ${d.changed.length ? '<span class="dot" aria-label="changed"></span>' : ""}
+      <span class="chev">›</span>
+    </button>`).join("") || '<p class="item muted">No duelist by that name.</p>';
+}
+$("duelist-search").oninput = renderDuelists;
+$("duelist-list").onclick = (e) => {
+  const b = e.target.closest("[data-d]"); if (!b) return;
+  current.duelist = +b.dataset.d;
+  show("duelist", true); renderPool();
+};
+for (const b of document.querySelectorAll(".segments button")) {
+  b.onclick = () => { current.pool = b.dataset.pool; renderPool(); };
+}
+function renderPool(data) {
+  const d = duelistRows.find((x) => x.id === current.duelist);
+  $("duelist-name").textContent = d ? d.name : "";
+  for (const b of document.querySelectorAll(".segments button")) b.setAttribute("aria-pressed", b.dataset.pool === current.pool);
+  $("pool-about").textContent = POOL_ABOUT[current.pool];
+  data = data || call("pool", current.duelist, current.pool);
+  $("pool-summary").textContent = `${data.rows.length} card${data.rows.length === 1 ? "" : "s"}`;
+  $("pool-changed").hidden = !data.changed;
+  $("pool-revert").hidden = !data.changed;
+  const top = data.rows.length ? data.rows[0][1] : 1;
+  $("pool-list").innerHTML = data.rows.map(([cid, w]) => {
+    const c = cardById.get(cid);
+    const was = data.retail[String(cid)] || 0;
+    return `<button class="item" data-c="${cid}">
+      <span class="main"><span class="name">${esc(c ? c[1] : "Card " + cid)}</span>
+        <span class="sub">${esc(cardSub(c))}${was !== w ? (was ? " · was " + fmtPct(was) : " · new") : ""}</span>
+        <span class="bar"><i style="width:${Math.max(2, w * 100 / top)}%"></i></span></span>
+      <span class="end"><span class="pct">${fmtPct(w)}</span><span class="weight">${w}/${TOTAL}</span></span>
+    </button>`;
+  }).join("") || '<p class="item muted">No cards.</p>';
+}
+$("pool-list").onclick = (e) => {
+  const b = e.target.closest("[data-c]"); if (!b) return;
+  const data = call("pool", current.duelist, current.pool);
+  const row = data.rows.find((r) => r[0] === +b.dataset.c);
+  editChance(+b.dataset.c, row ? row[1] : 0, data.rows.length);
+};
+$("pool-revert").onclick = () => {
+  openSheet(`<h2>Revert this pool?</h2><p class="muted">It goes back to the cards and chances on the disc.</p>
+    <div class="row-buttons"><button class="btn" data-x="no">Keep my changes</button><button class="btn primary" data-x="yes">Revert</button></div>`,
+    (s) => s.onclick = async (e) => {
+      const x = e.target.closest("[data-x]"); if (!x) return;
+      closeSheet();
+      if (x.dataset.x === "yes") { renderPool(call("pool_revert", current.duelist, current.pool)); await persist(); toast("Back to the disc's pool."); }
+    });
+};
+$("pool-add").onclick = () => pickCard((cid) => {
+  const data = call("pool", current.duelist, current.pool);
+  const row = data.rows.find((r) => r[0] === cid);
+  editChance(cid, row ? row[1] : 0, data.rows.length, true);
+});
+
+/* The chance sheet: set one card's share; the others make room as the game does. */
+function editChance(cid, weight, count, adding) {
+  const c = cardById.get(cid);
+  const startPct = weight ? pct(weight) : Math.min(10, 100 / Math.max(1, count + 1));
+  openSheet(`
+    <h2>${esc(c ? c[1] : "Card " + cid)}</h2>
+    <p class="muted small">${esc(cardSub(c))}</p>
+    <p class="small">Chance in ${esc(({ deck: "the deck", pow: "S/A-POW drops", bcd: "B/C/D drops", tec: "S/A-TEC drops" })[current.pool])}. The other cards keep their proportions and shrink or grow to make room; all of them add up to ${TOTAL}.</p>
+    <div class="stepper">
+      <button class="btn" data-step="-1" aria-label="Less">−</button>
+      <input id="chance" inputmode="decimal" value="${startPct.toFixed(2)}" aria-label="Chance in percent" autofocus>
+      <button class="btn" data-step="1" aria-label="More">+</button>
+    </div>
+    <p class="muted small" id="chance-weight"></p>
+    <div class="row-buttons">
+      ${weight ? '<button class="btn danger" data-x="remove">Remove</button>' : ""}
+      <button class="btn primary" data-x="set">${adding && !weight ? "Add" : "Set chance"}</button>
+    </div>`, (s) => {
+    const input = s.querySelector("#chance");
+    const toWeight = () => Math.max(1, Math.min(TOTAL, Math.round((parseFloat(input.value.replace(",", ".")) || 0) * TOTAL / 100)));
+    const shown = () => { s.querySelector("#chance-weight").textContent = `Percent. That is ${toWeight()} of ${TOTAL}, about 1 in ${Math.max(1, Math.round(TOTAL / toWeight()))}.`; };
+    input.oninput = shown; shown();
+    s.onclick = async (e) => {
+      const step = e.target.closest("[data-step]");
+      if (step) {
+        const now = parseFloat(input.value.replace(",", ".")) || 0;
+        const by = now >= 10 ? 1 : now >= 1 ? 0.5 : 0.1;
+        input.value = Math.max(0.05, Math.min(100, now + by * +step.dataset.step)).toFixed(2); shown(); return;
+      }
+      const x = e.target.closest("[data-x]"); if (!x) return;
+      try {
+        const data = call("pool_set", current.duelist, current.pool, cid, x.dataset.x === "remove" ? 0 : toWeight());
+        closeSheet(); renderPool(data); await persist();
+        toast(x.dataset.x === "remove" ? "Removed." : "Chance set.");
+      } catch (_) { /* toast shown */ }
+    };
+  });
+}
+
+/* The card picker: search by name or number. */
+function pickCard(then, title, note) {
+  openSheet(`<h2>${esc(title || "Add a card")}</h2>${note ? `<p class="muted small">${note}</p>` : ""}
+    <input class="search" id="pick-search" type="search" placeholder="Name or number" autocomplete="off" autofocus>
+    <div class="list" id="pick-list"></div>`, (s) => {
+    const list = s.querySelector("#pick-list"), search = s.querySelector("#pick-search");
+    const render = () => {
+      const q = search.value.trim().toLowerCase();
+      const found = cards.filter((c) => !q || String(c[0]) === q || c[1].toLowerCase().includes(q)).slice(0, 80);
+      list.innerHTML = found.map((c) => `<button class="item" data-c="${c[0]}"><span class="main"><span class="name">${esc(c[1])}</span><span class="sub">${esc(cardSub(c))}</span></span></button>`).join("")
+        || '<p class="item muted">No card matches.</p>';
+    };
+    search.oninput = render; render();
+    list.onclick = (e) => { const b = e.target.closest("[data-c]"); if (b) then(+b.dataset.c); };
+  });
+}
+
+/* --- cards: pictures, stats, new cards, fusions --------------------------------- */
+const artUrls = new Map();
+function artUrl(cid, part, fresh) {
+  const key = cid + part;
+  if (!fresh && artUrls.has(key)) return artUrls.get(key);
+  if (artUrls.has(key)) URL.revokeObjectURL(artUrls.get(key));
+  let url = "";
+  try {
+    if (bridge.art_png(cid, part, "/tmp/shown.png")) url = URL.createObjectURL(new Blob([py.FS.readFile("/tmp/shown.png")], { type: "image/png" }));
+  } catch (error) { console.warn(error); }
+  artUrls.set(key, url);
+  return url;
+}
+const STATUS_PILL = { new: '<span class="pill new">New</span>', changed: '<span class="pill">Changed</span>' };
+let thumbObserver = null;
+function renderCardList() {
+  const q = $("card-search").value.trim().toLowerCase();
+  for (const b of document.querySelectorAll("[data-show]")) b.setAttribute("aria-pressed", b.dataset.show === cardShow);
+  const found = cards.filter((c) => (cardShow === "all" || c[7] === cardShow) && (!q || String(c[0]) === q || c[1].toLowerCase().includes(q)));
+  const shown = found.slice(0, 150);
+  const empty = { all: "No card matches.", changed: "No cards changed yet.", new: "No new cards yet. Tap New card to make one." };
+  $("card-list").innerHTML = shown.map((c) => `<button class="item" data-c="${c[0]}">
+      <img class="thumb" data-thumb="${c[0]}" alt="">
+      <span class="main"><span class="name">${esc(c[1])}</span><span class="sub">${esc(cardSub(c))}</span></span>
+      ${STATUS_PILL[c[7]] || ""}<span class="chev">›</span></button>`).join("")
+    + (found.length > shown.length ? `<p class="item muted small">${found.length - shown.length} more: search to narrow it down.</p>` : "")
+    || `<p class="item muted">${empty[cardShow]}</p>`;
+  if (thumbObserver) thumbObserver.disconnect();
+  thumbObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      const img = entry.target; thumbObserver.unobserve(img);
+      img.src = artUrl(+img.dataset.thumb, "thumbnail");
+    }
+  }, { rootMargin: "200px" });
+  for (const img of document.querySelectorAll("[data-thumb]")) thumbObserver.observe(img);
+}
+$("card-search").oninput = renderCardList;
+for (const b of document.querySelectorAll("[data-show]")) b.onclick = () => { cardShow = b.dataset.show; renderCardList(); };
+$("card-list").onclick = (e) => {
+  const b = e.target.closest("[data-c]"); if (!b) return;
+  current.card = +b.dataset.c; show("card", true); renderCard();
+};
+$("card-new").onclick = () => pickCard(async (base) => {
+  try {
+    const made = call("card_add", base);
+    closeSheet(); reloadCards(); await persist();
+    current.card = made.id; show("card", true); renderCard();
+    editCard();
+  } catch (_) {}
+}, "New card", "A new card starts as a copy of the card you pick: its 3D model, its effect and its fusions come from it. Then give it its own name, picture and stats.");
+
+let detail = null, fusions = null;
+function renderCard(fresh) {
+  detail = call("card_detail", current.card);
+  const d = detail, kind = choices.types[d.type] || "?";
+  $("card-name").textContent = d.name || "(no name)";
+  $("card-pill").hidden = !d.status;
+  $("card-pill").className = "pill" + (d.status === "new" ? " new" : "");
+  $("card-pill").textContent = d.status === "new" ? "New" : "Changed";
+  $("card-stats").innerHTML = [`#${d.id}`, kind, d.monster ? choices.attributes[d.attribute] : "", d.level ? `Lv ${d.level}` : "",
+    d.monster ? `${d.attack} / ${d.defense}` : ""].filter(Boolean).map((t) => `<span>${esc(t)}</span>`).join("<span>·</span>");
+  $("card-base").hidden = !d.added;
+  if (d.added) $("card-base").textContent = `A new card, made from ${d.base_name}. It plays with ${d.base_name}'s 3D model and effect, and fuses as ${d.base_name} does unless you give it fusions of its own below.`;
+  $("card-art").src = artUrl(current.card, "art", fresh);
+  $("card-thumb").src = artUrl(current.card, "thumbnail", fresh);
+  const st = call("art_status", current.card);
+  $("card-from").textContent = st.art.changed ? "Your picture. The thumbnail on the left is what the hand and field show."
+    : d.added ? `${d.base_name}'s picture, until you give it its own.` : "The picture on the disc.";
+  $("art-revert").hidden = !st.art.changed;
+
+  const stars = [d.star1, d.star2].filter(Boolean).map((s) => choices.stars[s]).join(" / ") || "None";
+  const rows = [["Name", d.name || "(none)"], ["Type", kind]];
+  if (d.monster) rows.push(["Attribute", choices.attributes[d.attribute] || "?"], ["Level", d.level], ["ATK / DEF", `${d.attack} / ${d.defense}`], ["Guardian stars", stars]);
+  if (d.added) rows.push(["Won in place of " + d.base_name, d.drops ? "Yes" : "No"], ["Opponents deal it for " + d.base_name, d.opponents ? "Yes" : "No"]);
+  $("card-fields").innerHTML = rows.map(([k, v]) => `<div class="field-row"><b>${esc(k)}</b><span>${esc(v)}</span></div>`).join("")
+    + `<div class="field-row text"><b>Text</b><span>${esc(d.description || "(none)")}</span></div>`;
+  $("card-issues").innerHTML = d.issues.map((i) => `<div class="issue ${i.level}">${esc(i.message)}</div>`).join("");
+  $("card-revert").hidden = !d.status || (d.added ? false : d.status !== "changed");
+  $("card-revert").textContent = d.added ? `Reset stats to ${d.base_name}'s` : "Undo stat changes";
+  $("card-delete").hidden = !d.added;
+  renderFusions();
+}
+
+/* The edit sheet: name, text and stats. */
+function options(names, selected, from) {
+  return names.map((n, i) => i < (from || 0) ? "" : `<option value="${i}"${i === selected ? " selected" : ""}>${esc(n || "None")}</option>`).join("");
+}
+function editCard() {
+  const d = detail;
+  openSheet(`<h2>Edit ${esc(d.name || "card")}</h2>
+    <form class="form" id="card-form">
+      <label>Name<input id="f-name" value="${esc(d.name)}" maxlength="40" autocomplete="off"></label>
+      <label>Card text<textarea id="f-description" rows="5">${esc(d.description)}</textarea></label>
+      <p class="muted small">The game wraps it at about 20 letters a line and shows 8 lines.</p>
+      <label>Type<select id="f-type">${options(choices.types, d.type)}</select></label>
+      <div id="f-monster" class="form">
+        <div class="pair">
+          <label>ATK<input id="f-attack" inputmode="numeric" value="${d.attack}"></label>
+          <label>DEF<input id="f-defense" inputmode="numeric" value="${d.defense}"></label>
+        </div>
+        <div class="pair">
+          <label>Level<select id="f-level">${Array.from({ length: 13 }, (_, i) => `<option${i === d.level ? " selected" : ""}>${i}</option>`).join("")}</select></label>
+          <label>Attribute<select id="f-attribute">${options(choices.attributes, d.attribute)}</select></label>
+        </div>
+        <div class="pair">
+          <label>Guardian star 1<select id="f-star1">${options(choices.stars, d.star1)}</select></label>
+          <label>Guardian star 2<select id="f-star2">${options(choices.stars, d.star2)}</select></label>
+        </div>
+      </div>
+      ${d.added ? `
+      <label class="check"><input type="checkbox" id="f-drops"${d.drops ? " checked" : ""}> Can be won when ${esc(d.base_name)} would drop</label>
+      <label class="check"><input type="checkbox" id="f-opponents"${d.opponents ? " checked" : ""}> Opponents may deal it in place of ${esc(d.base_name)}</label>` : ""}
+      <p class="muted small">ATK and DEF go in tens, up to 5110.</p>
+      <div class="row-buttons"><button type="button" class="btn" data-x="cancel">Cancel</button><button class="btn primary" type="submit">Save</button></div>
+    </form>`, (s) => {
+    const type = s.querySelector("#f-type");
+    const monsterFields = () => { s.querySelector("#f-monster").hidden = !isMonsterKind(choices.types[+type.value]); };
+    type.onchange = monsterFields; monsterFields();
+    s.querySelector("[data-x=cancel]").onclick = closeSheet;
+    s.querySelector("#card-form").onsubmit = async (e) => {
+      e.preventDefault();
+      const v = (id) => s.querySelector(id).value;
+      const values = { name: v("#f-name"), description: v("#f-description"), type: +v("#f-type") };
+      if (isMonsterKind(choices.types[values.type])) Object.assign(values, {
+        attack: parseInt(v("#f-attack"), 10) || 0, defense: parseInt(v("#f-defense"), 10) || 0, level: +v("#f-level"),
+        attribute: +v("#f-attribute"), star1: +v("#f-star1"), star2: +v("#f-star2") });
+      if (d.added) { values.drops = s.querySelector("#f-drops").checked; values.opponents = s.querySelector("#f-opponents").checked; }
+      try {
+        call("card_set", current.card, JSON.stringify(values));
+        closeSheet(); reloadCards(); renderCard(); await persist(); toast("Saved.");
+      } catch (_) {}
+    };
+  });
+}
+$("card-edit").onclick = editCard;
+$("card-revert").onclick = async () => { call("card_revert", current.card); reloadCards(); renderCard(); await persist(); toast("Done."); };
+$("card-delete").onclick = () => {
+  openSheet(`<h2>Delete ${esc(detail.name)}?</h2><p class="muted">It goes out of the mod, with its fusions and its places in duelists' decks and drops. A save that holds it loses it when the mod is next played.</p>
+    <div class="row-buttons"><button class="btn" data-x="no">Keep it</button><button class="btn danger" data-x="yes">Delete</button></div>`,
+    (s) => s.onclick = async (e) => {
+      const x = e.target.closest("[data-x]"); if (!x) return;
+      closeSheet();
+      if (x.dataset.x !== "yes") return;
+      call("card_remove", current.card); reloadCards(); await persist();
+      show("cards", false); renderCardList(); toast("Deleted.");
+    });
+};
+
+/* Pictures: an image file cut to 102:96 from the middle and at most 4x
+   (408 x 384) in the browser, then handed to the editor as a PNG. */
+async function cardPicture(file) {
+  const bitmap = await createImageBitmap(file);
+  const ratio = 102 / 96;
+  let sw = bitmap.width, sh = bitmap.height;
+  if (sw / sh > ratio) sw = Math.round(sh * ratio); else sh = Math.round(sw / ratio);
+  const sx = Math.round((bitmap.width - sw) / 2), sy = Math.round((bitmap.height - sh) / 2);
+  const w = Math.min(408, sw), h = Math.round(w / ratio);
+  const canvas = document.createElement("canvas"); canvas.width = w; canvas.height = h;
+  const g = canvas.getContext("2d");
+  g.fillStyle = "#000"; g.fillRect(0, 0, w, h);
+  g.imageSmoothingQuality = "high";
+  g.drawImage(bitmap, sx, sy, sw, sh, 0, 0, w, h);
+  const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+  return new Uint8Array(await blob.arrayBuffer());
+}
+$("art-input").onchange = async (e) => {
+  const file = e.target.files[0]; e.target.value = "";
+  if (!file) return;
+  busy("Setting the picture…");
+  try {
+    py.FS.writeFile("/tmp/upload.png", await cardPicture(file));
+    await new Promise((r) => setTimeout(r, 20));
+    call("art_set", current.card, "art", "/tmp/upload.png");
+    reloadCards(); renderCard(true); await persist();
+    toast("Picture replaced.");
+  } catch (error) {
+    if (!String(error).includes("PythonError")) toast("That image could not be read. Try a PNG or JPEG.", true);
+  } finally { busy(""); }
+};
+$("art-revert").onclick = async () => {
+  call("art_revert", current.card, "art");
+  reloadCards(); renderCard(true); await persist(); toast("Back to the original picture.");
+};
+
+/* Fusions: what the card makes with others, and what makes it. */
+const FUSION_PILL = { added: '<span class="pill new">Added</span>', changed: '<span class="pill">Changed</span>', removed: '<span class="pill removed">Removed</span>' };
+function fusionRow(f, text) {
+  return `<button class="item fusion" data-a="${f.a}" data-b="${f.b}"><span class="main">${text}
+    ${f.status === "changed" || f.status === "removed" ? `<span class="sub">On the disc: ${esc(cardName(f.was))}</span>` : ""}</span>
+    ${FUSION_PILL[f.status] || ""}</button>`;
+}
+function renderFusions() {
+  fusions = call("fusions_of", current.card);
+  const name = esc(detail.name || "this card"), arrow = '<span class="arrow">→</span>';
+  $("fusion-about").textContent = detail.added
+    ? `Fusions of its own come first; with any card not listed here it fuses as ${detail.base_name} does.`
+    : "Tap a fusion to change what it makes, or remove it.";
+  $("fusion-makes").innerHTML = fusions.makes.map((f) => fusionRow(f,
+    `<span class="name">${esc(cardName(f.a))} + ${esc(cardName(f.b))}</span><span class="sub">${arrow} ${f.result ? name : "nothing"}</span>`)).join("")
+    || '<p class="item muted small">Nothing fuses into it.</p>';
+  const q = $("fusion-search").value.trim().toLowerCase();
+  const found = fusions.material.filter((f) => !q || cardName(f.other).toLowerCase().includes(q) || cardName(f.result).toLowerCase().includes(q));
+  const shown = found.slice(0, 60);
+  $("fusion-material").innerHTML = shown.map((f) => fusionRow(f,
+    `<span class="name">+ ${esc(cardName(f.other))}</span><span class="sub">${arrow} ${esc(f.result ? cardName(f.result) : "nothing")}</span>`)).join("")
+    + (found.length > shown.length ? `<p class="item muted small">${found.length - shown.length} more: search to narrow it down.</p>` : "")
+    || `<p class="item muted small">${q ? "No fusion matches." : detail.added ? "None of its own yet." : "It fuses with nothing."}</p>`;
+}
+$("fusion-search").oninput = () => fusions && renderFusions();
+async function setFusion(a, b, result) {
+  try {
+    call("fusion_set", a, b, result);
+    closeSheet(); reloadCards(); renderFusions(); await persist();
+    toast(result ? `${cardName(a)} + ${cardName(b)} now make ${cardName(result)}.` : "Fusion removed.");
+  } catch (_) {}
+}
+function currentFusion(a, b) {
+  return [...fusions.material, ...fusions.makes].find((f) => (f.a === Math.min(a, b) && f.b === Math.max(a, b)));
+}
+$("fusion-add").onclick = () => pickCard((other) => {
+  const now = currentFusion(current.card, other);
+  pickCard((result) => setFusion(current.card, other, result), "What do they make?",
+    `${esc(detail.name)} + ${esc(cardName(other))}` + (now && now.result ? `: right now they make ${esc(cardName(now.result))}.` : "."));
+}, "Fuse with which card?", `The other card in the fusion with ${esc(detail.name)}.`);
+function openFusion(a, b) {
+  const f = currentFusion(a, b); if (!f) return;
+  openSheet(`<h2>${esc(cardName(a))} + ${esc(cardName(b))}</h2>
+    <p>${f.result ? `They make <strong>${esc(cardName(f.result))}</strong>.` : "They make nothing."}${f.was && f.was !== f.result ? ` On the disc they make ${esc(cardName(f.was))}.` : ""}</p>
+    <div class="stack">
+      <button class="btn primary" data-x="result">${f.result ? "Change what they make" : "Make them fuse again"}</button>
+      ${f.result ? '<button class="btn danger" data-x="remove">Remove this fusion</button>' : ""}
+      ${f.status === "added" || f.status === "changed" || f.status === "removed" ? `<button class="btn" data-x="revert">${f.was ? "Back to the disc's" : "Take it out"}</button>` : ""}
+    </div>`, (s) => s.onclick = async (e) => {
+      const x = e.target.closest("[data-x]"); if (!x) return;
+      if (x.dataset.x === "result") pickCard((result) => setFusion(a, b, result), "What do they make?", `${esc(cardName(a))} + ${esc(cardName(b))}`);
+      if (x.dataset.x === "remove") setFusion(a, b, 0);
+      if (x.dataset.x === "revert") {
+        try { call("fusion_revert", a, b); closeSheet(); renderFusions(); await persist(); toast("Done."); } catch (_) {}
+      }
+    });
+}
+for (const id of ["fusion-makes", "fusion-material"]) {
+  $(id).onclick = (e) => { const b = e.target.closest("[data-a]"); if (b) openFusion(+b.dataset.a, +b.dataset.b); };
+}
+
+/* --- fusion rules: many fusions at once ------------------------------------------ */
+const KINDS = [["monster", "Monsters"], ["magic", "Magic"], ["trap", "Traps"], ["ritual", "Rituals"], ["equip", "Equips"]];
+let rule = null, groupsNow = {}, groupName = "";
+function freshRule() {
+  return { mode: "add", a: { kinds: ["monster"] }, b: { kinds: ["monster"] }, result_kind: "ladder",
+           ladder: { kinds: ["monster"] }, result: 0, stronger: true, overwrite: false, allow_self: false };
+}
+/* A side in words: "Dragon · ATK ≥ 1600". */
+function describeSide(side) {
+  const parts = [];
+  const kinds = side.kinds || [];
+  if (kinds.length && !(kinds.length === 1 && kinds[0] === "monster" && (side.types || []).length))
+    parts.push(kinds.map((k) => KINDS.find((x) => x[0] === k)[1]).join(" or "));
+  if ((side.types || []).length) parts.push(side.types.map((t) => choices.types[t]).join(" or "));
+  if ((side.attributes || []).length) parts.push(side.attributes.map((a) => choices.attributes[a]).join(" or "));
+  if ((side.stars || []).length) parts.push("Star " + side.stars.map((s) => choices.stars[s]).join(" or "));
+  const range = (label, lo, hi) => {
+    const has = (v) => v !== undefined && v !== null && v !== "";
+    if (has(lo) && has(hi)) parts.push(`${label} ${lo}–${hi}`);
+    else if (has(lo)) parts.push(`${label} ≥ ${lo}`);
+    else if (has(hi)) parts.push(`${label} ≤ ${hi}`);
+  };
+  range("ATK", side.atk_min, side.atk_max); range("DEF", side.def_min, side.def_max); range("Level", side.level_min, side.level_max);
+  if (side.name_any) parts.push(`name has “${side.name_any}”`);
+  if (side.name_none) parts.push(`name without “${side.name_none}”`);
+  if (side.text) parts.push(`text has “${side.text}”`);
+  if ((side.groups || []).length) parts.push("in " + side.groups.join(" or "));
+  if (side.results_only) parts.push("fusion results");
+  return parts.join(" · ") || "Any card";
+}
+function sideCount(side) { return call("bulk_side", JSON.stringify(side)); }
+function renderSideButton(id, side, label) {
+  const found = sideCount(side);
+  $(id).innerHTML = `<span class="main"><span class="name">${esc(describeSide(side))}</span>
+    <span class="sub">${esc(found.cards.slice(0, 4).map((c) => c[1]).join(", "))}${found.count > 4 ? "…" : ""}</span></span>
+    <span class="count">${found.count} card${found.count === 1 ? "" : "s"}</span><span class="chev">›</span>`;
+  $(id).setAttribute("aria-label", `${label}: ${describeSide(side)}, ${found.count} cards`);
+}
+
+/* The filter sheet: every filter given must hold; within one row, any may. */
+function editSide(side, title, done) {
+  const work = JSON.parse(JSON.stringify(side));
+  const chipRow = (key, items) => `<div class="chips" data-key="${key}">${items.map(([v, label]) =>
+    `<button type="button" data-v="${v}" aria-pressed="${(work[key] || []).map(String).includes(String(v))}">${esc(label)}</button>`).join("")}</div>`;
+  const types = choices.types.slice(0, 20).map((t, i) => [i, t]);
+  const attributes = choices.attributes.map((a, i) => [i, a]);
+  const stars = choices.stars.map((st, i) => [i, st]).filter(([i]) => i > 0);
+  const groupNames = Object.keys(groupsNow).map((g) => [g, g]);
+  const num = (key, label) => `<label>${label}<input inputmode="numeric" data-num="${key}" value="${work[key] ?? ""}"></label>`;
+  openSheet(`<h2>${esc(title)}</h2>
+    <div class="filter-count" id="filter-count"></div>
+    <div class="form">
+      <p class="label">Kind</p>${chipRow("kinds", KINDS)}
+      <p class="label">Monster type</p>${chipRow("types", types)}
+      <p class="label">Attribute</p>${chipRow("attributes", attributes)}
+      <div class="pair">${num("atk_min", "ATK at least")}${num("atk_max", "ATK at most")}</div>
+      <div class="pair">${num("def_min", "DEF at least")}${num("def_max", "DEF at most")}</div>
+      <div class="pair">${num("level_min", "Level at least")}${num("level_max", "Level at most")}</div>
+      <label>Name has any of<input data-text="name_any" value="${esc(work.name_any || "")}" placeholder="dragon, drake" autocomplete="off" autocapitalize="none"></label>
+      <label>Name has none of<input data-text="name_none" value="${esc(work.name_none || "")}" placeholder="zombie" autocomplete="off" autocapitalize="none"></label>
+      <label>Card text has<input data-text="text" value="${esc(work.text || "")}" autocomplete="off" autocapitalize="none"></label>
+      ${groupNames.length ? `<p class="label">In your groups</p>${chipRow("groups", groupNames)}` : ""}
+      <p class="label">Guardian star</p>${chipRow("stars", stars)}
+      <label class="check"><input type="checkbox" data-check="results_only"${work.results_only ? " checked" : ""}> Only cards some fusion makes</label>
+      <div class="row-buttons"><button type="button" class="btn" data-x="clear">Clear</button><button type="button" class="btn primary" data-x="done">Done</button></div>
+    </div>`, (s) => {
+    let timer = null;
+    const count = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        try {
+          const found = sideCount(work);
+          s.querySelector("#filter-count").innerHTML = `${found.count} card${found.count === 1 ? "" : "s"}<small>${esc(found.cards.slice(0, 12).map((c) => c[1]).join(", ")) || "No card has all of these."}</small>`;
+        } catch (_) {}
+      }, 180);
+    };
+    count();
+    s.onclick = (e) => {
+      const chip = e.target.closest(".chips button");
+      if (chip) {
+        const key = chip.parentElement.dataset.key, raw = chip.dataset.v;
+        const value = key === "kinds" || key === "groups" ? raw : +raw;
+        const list = work[key] || (work[key] = []);
+        const at = list.findIndex((v) => String(v) === String(value));
+        if (at >= 0) list.splice(at, 1); else list.push(value);
+        chip.setAttribute("aria-pressed", at < 0);
+        count(); return;
+      }
+      const x = e.target.closest("[data-x]"); if (!x) return;
+      if (x.dataset.x === "clear") { closeSheet(); editSide({}, title, done); return; }
+      closeSheet(); done(work);
+    };
+    s.oninput = (e) => {
+      const el = e.target;
+      if (el.dataset.num) { const v = el.value.trim(); if (v === "" || isNaN(+v)) delete work[el.dataset.num]; else work[el.dataset.num] = +v; }
+      if (el.dataset.text) { if (el.value.trim()) work[el.dataset.text] = el.value; else delete work[el.dataset.text]; }
+      if (el.dataset.check) work[el.dataset.check] = el.checked;
+      count();
+    };
+  });
+}
+
+function renderFusionTab() {
+  groupsNow = call("groups");
+  const history = call("bulk_history");
+  $("rule-history").innerHTML = history.map((h) => `<div class="item"><span class="main"><span class="name">${esc(h.description)}</span>
+      <span class="sub">${esc(h.headline)}</span></span>${h.undo ? `<button class="btn" data-undo="${h.id}">Undo</button>` : ""}</div>`).join("")
+    || '<p class="item muted small">No rules applied yet.</p>';
+  const names = Object.keys(groupsNow).sort((x, y) => x.localeCompare(y));
+  $("group-list").innerHTML = names.map((g) => `<button class="item" data-g="${esc(g)}"><span class="main"><span class="name">${esc(g)}</span>
+      <span class="sub">${groupsNow[g].length} card${groupsNow[g].length === 1 ? "" : "s"}</span></span><span class="chev">›</span></button>`).join("")
+    || '<p class="item muted small">No groups yet.</p>';
+}
+$("rule-history").onclick = async (e) => {
+  const b = e.target.closest("[data-undo]"); if (!b) return;
+  try {
+    const r = call("bulk_undo", +b.dataset.undo);
+    reloadCards(); renderFusionTab(); await persist();
+    toast(`Undone: ${r.restored} fusions put back` + (r.skipped ? `, ${r.skipped} you changed since left as they are.` : "."));
+  } catch (_) {}
+};
+$("rule-new").onclick = () => { rule = freshRule(); show("rule", true); renderRule(); };
+
+function renderRule() {
+  for (const b of document.querySelectorAll("[data-mode]")) b.setAttribute("aria-pressed", b.dataset.mode === rule.mode);
+  for (const b of document.querySelectorAll("[data-result]")) b.setAttribute("aria-pressed", b.dataset.result === rule.result_kind);
+  renderSideButton("side-a", rule.a, "Card A");
+  renderSideButton("side-b", rule.b, "Card B");
+  const adding = rule.mode === "add";
+  $("rule-makes").hidden = !adding;
+  $("opt-overwrite-row").hidden = !adding;
+  $("opt-stronger-row").hidden = !adding || rule.result_kind !== "card";
+  $("opt-stronger").checked = rule.stronger; $("opt-overwrite").checked = rule.overwrite; $("opt-self").checked = rule.allow_self;
+  if (rule.result_kind === "ladder") {
+    $("result-about").textContent = "Each pair makes the weakest card of this list whose ATK beats both of its cards, as the game's own fusions do. Pairs that no card beats are left alone.";
+    renderSideButton("side-result", rule.ladder, "Results");
+  } else {
+    $("result-about").textContent = "Every pair makes this card.";
+    $("side-result").innerHTML = rule.result
+      ? `<span class="main"><span class="name">${esc(cardName(rule.result))}</span><span class="sub">${esc(cardSub(cardById.get(rule.result)))}</span></span><span class="chev">›</span>`
+      : '<span class="main"><span class="name">Choose a card</span></span><span class="chev">›</span>';
+  }
+  previewRule();
+}
+function ruleDescription() {
+  const made = rule.mode === "remove" ? "removed" : rule.result_kind === "card" ? `→ ${cardName(rule.result)}` : `→ weakest of ${describeSide(rule.ladder)}`;
+  return `${describeSide(rule.a)} + ${describeSide(rule.b)} ${made}`;
+}
+let previewTimer = null;
+function previewRule() {
+  clearTimeout(previewTimer);
+  $("rule-apply").disabled = true;
+  $("rule-preview").innerHTML = '<p class="muted small">Working it out…</p>';
+  previewTimer = setTimeout(() => {
+    let plan;
+    try { plan = call("bulk_plan", JSON.stringify(rule)); } catch (_) { return; }
+    const pill = { add: '<span class="pill new">Add</span>', replace: '<span class="pill">Replace</span>', remove: '<span class="pill removed">Remove</span>', kept: '<span class="pill">Kept</span>' };
+    $("rule-preview").innerHTML = (plan.headline ? `<div class="headline">${esc(plan.headline)}</div><p class="muted small">${esc(plan.details)}</p>` : "")
+      + plan.errors.map((e) => `<div class="issue error">${esc(e)}</div>`).join("")
+      + plan.warnings.map((w) => `<div class="issue">${esc(w)}</div>`).join("")
+      + (plan.samples.length ? `<div class="list">${plan.samples.slice(0, 30).map((f) => `<div class="mini"><span class="main">${esc(f.a_name)} + ${esc(f.b_name)}
+          <span class="muted">→ ${esc(f.what === "remove" ? "nothing" : f.after_name)}${f.what === "replace" ? ` (was ${esc(f.before_name)})` : ""}</span></span>${pill[f.what] || ""}</div>`).join("")}</div>`
+          + (plan.changes > 30 ? `<p class="muted small">…and ${plan.changes - 30} more.</p>` : "") : "")
+      + (plan.budget ? `<p class="muted small">${esc(plan.budget)}</p>` : "");
+    $("rule-apply").disabled = !plan.ok;
+    $("rule-apply").textContent = plan.ok ? (rule.mode === "remove" ? `Remove ${plan.changes} fusions` : `Apply to ${plan.changes} pairs`) : "Apply";
+  }, 60);
+}
+for (const b of document.querySelectorAll("[data-mode]")) b.onclick = () => { rule.mode = b.dataset.mode; renderRule(); };
+for (const b of document.querySelectorAll("[data-result]")) b.onclick = () => { rule.result_kind = b.dataset.result; renderRule(); };
+$("side-a").onclick = () => editSide(rule.a, "Card A", (side) => { rule.a = side; renderRule(); });
+$("side-b").onclick = () => editSide(rule.b, "Card B", (side) => { rule.b = side; renderRule(); });
+$("side-result").onclick = () => rule.result_kind === "ladder"
+  ? editSide(rule.ladder, "Results to choose from", (side) => { rule.ladder = side; renderRule(); })
+  : pickCard((cid) => { closeSheet(); rule.result = cid; renderRule(); }, "What do they make?", "A fusion makes a monster.");
+$("opt-stronger").onchange = (e) => { rule.stronger = e.target.checked; previewRule(); };
+$("opt-overwrite").onchange = (e) => { rule.overwrite = e.target.checked; previewRule(); };
+$("opt-self").onchange = (e) => { rule.allow_self = e.target.checked; previewRule(); };
+$("rule-apply").onclick = async () => {
+  busy("Applying…");
+  await new Promise((r) => setTimeout(r, 30));
+  try {
+    const entry = call("bulk_apply", JSON.stringify(rule), ruleDescription());
+    reloadCards(); await persist();
+    show("fusions", false); renderFusionTab();
+    toast(`${entry.count} fusions ${rule.mode === "remove" ? "removed" : "changed"}. Undo is under Rules applied.`);
+  } catch (_) {} finally { busy(""); }
+};
+
+/* Groups: the player's own card lists. */
+function openGroup(name) {
+  groupName = name; show("group", true);
+  $("group-name").value = name; renderGroup();
+}
+function renderGroup() {
+  const ids = groupsNow[groupName] || [];
+  $("group-count").textContent = `${ids.length} card${ids.length === 1 ? "" : "s"}`;
+  $("group-cards").innerHTML = ids.map((cid) => `<div class="mini"><span class="main">${esc(cardName(cid))}
+      <span class="muted">${esc(cardSub(cardById.get(cid)))}</span></span><button class="x" data-rm="${cid}" aria-label="Take out">×</button></div>`).join("")
+    || '<p class="item muted small">Empty. Add cards one by one, or every card some filters pick.</p>';
+}
+async function storeGroup(ids) {
+  groupsNow = call("group_save", groupName, JSON.stringify(ids)); renderGroup(); await persist();
+}
+$("group-new").onclick = () => {
+  let n = 1; while (groupsNow["Group " + n]) n++;
+  groupName = "Group " + n; groupsNow = call("group_save", groupName, "[]"); openGroup(groupName);
+  setTimeout(() => $("group-name").select(), 50);
+};
+$("group-list").onclick = (e) => { const b = e.target.closest("[data-g]"); if (b) openGroup(b.dataset.g); };
+$("group-name").onchange = async () => {
+  const name = $("group-name").value.trim();
+  if (!name || name === groupName) { $("group-name").value = groupName; return; }
+  if (groupsNow[name]) { toast("There is a group by that name already.", true); $("group-name").value = groupName; return; }
+  const ids = groupsNow[groupName] || [];
+  call("group_delete", groupName); groupName = name; await storeGroup(ids);
+};
+$("group-cards").onclick = (e) => {
+  const b = e.target.closest("[data-rm]"); if (!b) return;
+  storeGroup((groupsNow[groupName] || []).filter((c) => c !== +b.dataset.rm));
+};
+$("group-add-one").onclick = () => pickCard(async (cid) => {
+  await storeGroup([...(groupsNow[groupName] || []), cid]); toast(`${cardName(cid)} added.`);
+}, "Add a card", "Tap cards to add them; tap outside when you're done.");
+$("group-add-filter").onclick = () => editSide({}, "Add every card these pick", async (side) => {
+  const found = sideCount(side);
+  if (found.count > 400) { toast(`That picks ${found.count} cards; narrow it to 400 or fewer.`, true); return; }
+  await storeGroup([...(groupsNow[groupName] || []), ...found.cards.map((c) => c[0])]);
+  toast(`${found.count} cards added.`);
+});
+$("group-delete").onclick = () => {
+  openSheet(`<h2>Delete ${esc(groupName)}?</h2><p class="muted">Fusions made with it stay. Rules you make later can't pick it.</p>
+    <div class="row-buttons"><button class="btn" data-x="no">Keep it</button><button class="btn danger" data-x="yes">Delete</button></div>`,
+    (s) => s.onclick = async (e) => {
+      const x = e.target.closest("[data-x]"); if (!x) return;
+      closeSheet();
+      if (x.dataset.x !== "yes") return;
+      groupsNow = call("group_delete", groupName); await persist();
+      show("fusions", false); renderFusionTab(); toast("Group deleted.");
+    });
+};
+
+/* --- mod --------------------------------------------------------------------- */
+function renderMod() {
+  const info = call("info");
+  const fusions = call("changed_fusions");
+  const added = cards.filter((c) => c[7] === "new").length, changed = cards.filter((c) => c[7] === "changed").length;
+  const pools = (duelistRows.length ? duelistRows : call("duelists")).reduce((n, d) => n + d.changed.length, 0);
+  const parts = [[added, "new card"], [changed, "changed card"], [fusions.length, "fusion change"], [pools, "duelist pool"]]
+    .filter(([n]) => n).map(([n, w]) => `${n} ${w}${n === 1 ? "" : "s"}`);
+  $("mod-summary").textContent = parts.length ? parts.join(" · ") : "Nothing changed yet.";
+  $("mod-name").value = info.name; $("mod-id").value = info.id; $("mod-author").value = info.author;
+  $("mod-version").value = info.version; $("mod-description").value = info.description;
+  const found = call("issues");
+  $("issues").innerHTML = found.length
+    ? found.map((i) => `<div class="issue ${i.level}"><strong>${esc(i.area)}</strong> · ${esc(i.where)}<br>${esc(i.message)}</div>`).join("")
+    : '<p class="muted small">No problems found.</p>';
+}
+$("mod-save").onclick = async () => {
+  try {
+    const info = call("set_info", JSON.stringify({ name: $("mod-name").value, id: $("mod-id").value, author: $("mod-author").value,
+      version: $("mod-version").value, description: $("mod-description").value }));
+    setChip(info); await persist(); renderMod(); toast("Saved.");
+  } catch (_) {}
+};
+$("export").onclick = async () => {
+  const errors = call("issues").filter((i) => i.level === "error");
+  if (errors.length) { toast("Fix the problems under Checks first.", true); return; }
+  const name = call("export_zip", "/tmp/export.zip");
+  const file = new File([py.FS.readFile("/tmp/export.zip")], name, { type: "application/zip" });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+  } catch (error) { if (error && error.name === "AbortError") return; }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+};
+$("import-input").onchange = async (e) => {
+  const file = e.target.files[0]; e.target.value = "";
+  if (!file) return;
+  busy("Opening the mod…");
+  try {
+    py.FS.writeFile("/tmp/import.zip", new Uint8Array(await file.arrayBuffer()));
+    const opened = call("import_zip", "/tmp/import.zip");
+    artUrls.clear(); reloadCards();
+    setChip(opened.info); await persist(); renderMod();
+    toast(opened.notes.length ? opened.notes[0] : `Opened ${opened.info.name}.`);
+  } catch (_) {} finally { busy(""); }
+};
+$("new-mod").onclick = () => {
+  openSheet(`<h2>Start a new mod?</h2><p class="muted">Everything in the one you're editing is thrown away. Export it first to keep it.</p>
+    <div class="row-buttons"><button class="btn" data-x="no">Cancel</button><button class="btn danger" data-x="yes">Start over</button></div>`,
+    (s) => s.onclick = async (e) => {
+      const x = e.target.closest("[data-x]"); if (!x) return;
+      closeSheet();
+      if (x.dataset.x === "yes") { setChip(call("new_mod")); artUrls.clear(); reloadCards(); await persist(); renderMod(); toast("New mod started."); }
+    });
+};
+
+start();
+</script>
+</body>
+</html>
