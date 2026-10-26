@@ -16,7 +16,7 @@ from pathlib import Path
 
 from fm_editor import art, disc, gamedata, manifest, pngio, pools, validate
 from fm_editor.gamedata import (ATTRIBUTE_NAMES, DECK_POOL_MIN_CARDS, DUELIST_NAMES, POOL_TOTAL, POOLS,
-                                TYPE_NAMES)
+                                STAR_NAMES, TYPE_NAMES)
 from fm_editor.model import KEY_RE, Project
 
 ROOT = Path("/persist")
@@ -161,14 +161,16 @@ def import_zip(path: str) -> str:
 # --- cards -----------------------------------------------------------------------
 
 def cards() -> str:
-    """Every card for the pickers: [id, name, kind, attack, defense, level]."""
+    """Every card for the pickers: [id, name, kind, attack, defense, level,
+    attribute, status ("new", "changed" or "")]."""
     project = _project()
     out = []
     for cid in sorted(project.cards):
         card = project.cards[cid]
         kind = TYPE_NAMES[card.type] if 0 <= card.type < len(TYPE_NAMES) else "?"
         out.append([cid, card.name, kind, card.attack, card.defense, card.level,
-                    ATTRIBUTE_NAMES[card.attribute] if card.is_monster() and 0 <= card.attribute < 6 else ""])
+                    ATTRIBUTE_NAMES[card.attribute] if card.is_monster() and 0 <= card.attribute < 6 else "",
+                    _status(project, cid)])
     return _out(out)
 
 
@@ -272,3 +274,158 @@ def art_revert(cid: int, part: str = "art") -> str:
 
 def art_changed() -> str:
     return _out(sorted(art.changed_cards(_project())))
+
+
+# --- card details: any card's stats, and new cards past 722 ------------------------
+
+FIELDS = ("name", "description", "attack", "defense", "type", "attribute", "level", "star1", "star2")
+
+
+def card_choices() -> str:
+    """The names the card form offers: types, attributes, guardian stars."""
+    return _out({"types": list(TYPE_NAMES), "attributes": list(ATTRIBUTE_NAMES), "stars": list(STAR_NAMES)})
+
+
+def _status(project, cid: int) -> str:
+    if cid in project.added:
+        return "new"
+    return "changed" if project.card_changed(cid) or (cid, "art") in art.state(project).images else ""
+
+
+def card_detail(cid: int) -> str:
+    project = _project()
+    cid = int(cid)
+    card = project.cards[cid]
+    out = {f: getattr(card, f) for f in FIELDS}
+    out.update(id=cid, monster=card.is_monster(), status=_status(project, cid), added=cid in project.added,
+               issues=[{"level": i.level, "message": i.message} for i in validate.validate_card(project, cid)])
+    if cid in project.added:
+        added = project.added[cid]
+        base = project.cards.get(added.base)
+        out.update(base=added.base, base_name=base.name if base else "", drops=added.drops,
+                   opponents=added.opponents)
+    elif cid in project.retail.cards:
+        out["retail"] = {f: getattr(project.retail.cards[cid], f) for f in FIELDS}
+    return _out(out)
+
+
+def card_set(cid: int, values_json: str) -> str:
+    """Change a card's fields ({field: value}); the checks come back with it."""
+    project = _project()
+    cid = int(cid)
+    values = json.loads(values_json)
+    changes = {}
+    for field in FIELDS:
+        if field not in values:
+            continue
+        value = values[field]
+        if field in ("name", "description"):
+            value = str(value).replace("\r\n", "\n").replace("\r", "\n")
+            if field == "name":
+                value = value.replace("\n", " ").strip()
+        else:
+            value = int(value)
+        changes[field] = value
+    for label, field in (("ATK", "attack"), ("DEF", "defense")):
+        if field in changes and not 0 <= changes[field] <= 5110:
+            raise ValueError(f"{label} is 0 to 5110.")
+        if field in changes and changes[field] % 10:
+            raise ValueError(f"{label} is kept in tens: use {changes[field] // 10 * 10}.")
+    if "level" in changes and not 0 <= changes["level"] <= 12:
+        raise ValueError("Level is 0 to 12.")
+    project.cards[cid] = project.cards[cid].copy(**changes)
+    for flag in ("drops", "opponents"):
+        if flag in values and cid in project.added:
+            setattr(project.added[cid], flag, bool(values[flag]))
+    _save()
+    return card_detail(cid)
+
+
+def card_add(base: int) -> str:
+    """A new card, a copy of `base`, past 722: it starts as its base and is
+    changed from there."""
+    project = _project()
+    base = project.base_of(int(base))
+    cid = project.add_card(base)
+    project.cards[cid] = project.cards[cid].copy(name=f"{project.cards[base].name} II")
+    _save()
+    return card_detail(cid)
+
+
+def card_remove(cid: int) -> str:
+    _project().remove_card(int(cid))
+    _save()
+    return _out({"removed": int(cid)})
+
+
+def card_revert(cid: int) -> str:
+    _project().revert_card(int(cid))
+    _save()
+    return card_detail(cid)
+
+
+# --- fusions ---------------------------------------------------------------------------
+
+def fusions_of(cid: int) -> str:
+    """The fusions a card is in: those it is a material of (with the other
+    material and the result), and those that make it. Removed ones are listed
+    too, so they can be restored."""
+    project = _project()
+    cid = int(cid)
+    retail = project.retail.fusions
+    pairs = set(retail) | set(project.fusions)
+    material, makes = [], []
+    for pair in pairs:
+        now = project.fusions.get(pair)
+        was = retail.get(pair)
+        if cid in pair:
+            other = pair[1] if pair[0] == cid else pair[0]
+            material.append({"a": pair[0], "b": pair[1], "other": other, "result": now or 0, "was": was or 0,
+                             "status": project.fusion_status(pair)})
+        if (now == cid or was == cid) and cid not in pair:
+            makes.append({"a": pair[0], "b": pair[1], "result": now or 0, "was": was or 0,
+                          "status": project.fusion_status(pair)})
+    order = {"added": 0, "changed": 1, "removed": 2, "glitch": 3, "": 4}
+    material.sort(key=lambda f: (order.get(f["status"], 5), f["other"]))
+    makes.sort(key=lambda f: (order.get(f["status"], 5), f["a"], f["b"]))
+    out = {"material": material, "makes": makes}
+    if cid in project.added:
+        out["base"] = project.added[cid].base
+    return _out(out)
+
+
+def fusion_set(a: int, b: int, result: int) -> str:
+    """Two cards make `result` (0: they make nothing)."""
+    project = _project()
+    a, b, result = int(a), int(b), int(result)
+    for c in (a, b, result):
+        if c and c not in project.cards:
+            raise ValueError(f"There is no card {c}.")
+    project.set_fusion(a, b, result or None)
+    project.settle_removes()
+    _save()
+    pair = project.pair(a, b)
+    return _out({"a": pair[0], "b": pair[1], "result": project.fusions.get(pair) or 0,
+                 "status": project.fusion_status(pair)})
+
+
+def fusion_revert(a: int, b: int) -> str:
+    project = _project()
+    pair = project.pair(int(a), int(b))
+    project.revert_fusion(pair)
+    project.settle_removes()
+    _save()
+    return _out({"a": pair[0], "b": pair[1], "result": project.fusions.get(pair) or 0,
+                 "status": project.fusion_status(pair)})
+
+
+def changed_fusions() -> str:
+    """Every pair the mod changes, for the overview."""
+    project = _project()
+    out = []
+    for pair in sorted(set(project.retail.fusions) | set(project.fusions)):
+        status = project.fusion_status(pair)
+        if status in ("added", "changed", "removed"):
+            out.append({"a": pair[0], "b": pair[1], "result": project.fusions.get(pair) or 0,
+                        "was": project.retail.fusions.get(pair) or 0, "status": status})
+    return _out(out)
