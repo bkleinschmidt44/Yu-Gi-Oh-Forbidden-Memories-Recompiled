@@ -57,6 +57,7 @@ def load_game() -> str:
     files = disc.load(_game())
     state["files"] = files
     state["retail"] = gamedata.load_game(files)
+    state["batches"] = []
     notes = []
     if (_mod() / "mod.json").is_file():
         try:
@@ -84,6 +85,7 @@ def _save():
 def new_mod() -> str:
     shutil.rmtree(_mod(), ignore_errors=True)
     state["project"] = Project(state["retail"])
+    state["batches"] = []
     _save()
     return _out(_info())
 
@@ -152,6 +154,7 @@ def import_zip(path: str) -> str:
     project, notes = manifest.open_mod(state["retail"], manifests[0].parent)
     shutil.rmtree(_mod(), ignore_errors=True)
     state["project"] = project
+    state["batches"] = []
     manifest.save_mod(project, _mod())
     project.source_dir = _mod()
     shutil.rmtree(work, ignore_errors=True)
@@ -429,3 +432,177 @@ def changed_fusions() -> str:
             out.append({"a": pair[0], "b": pair[1], "result": project.fusions.get(pair) or 0,
                         "was": project.retail.fusions.get(pair) or 0, "status": status})
     return _out(out)
+
+
+# --- fusions in bulk: rules over sets of cards --------------------------------------
+
+from fm_editor import bulk_fusions as bulk                     # noqa: E402
+
+KIND_NAMES = {"monster": "Monsters", "magic": "Magic", "trap": "Traps", "ritual": "Rituals", "equip": "Equips"}
+
+
+def _groups_path() -> Path:
+    return ROOT / "groups.json"
+
+
+def _groups() -> dict:
+    try:
+        data = json.loads(_groups_path().read_text(encoding="utf-8"))
+        return {str(k): [int(c) for c in v] for k, v in data.items() if isinstance(v, list)}
+    except (OSError, ValueError):
+        return {}
+
+
+def groups() -> str:
+    """The player's own groups of cards ("Girls", "Jars"...), kept beside the
+    mod: {name: [card ids]}."""
+    return _out(_groups())
+
+
+def group_save(name: str, ids_json: str) -> str:
+    name = str(name).strip()
+    if not name:
+        raise ValueError("Give the group a name.")
+    project = _project()
+    all_groups = _groups()
+    all_groups[name] = sorted({int(c) for c in json.loads(ids_json) if int(c) in project.cards})
+    _groups_path().write_text(json.dumps(all_groups, indent=1), encoding="utf-8")
+    return _out(all_groups)
+
+
+def group_delete(name: str) -> str:
+    all_groups = _groups()
+    all_groups.pop(str(name), None)
+    _groups_path().write_text(json.dumps(all_groups, indent=1), encoding="utf-8")
+    return _out(all_groups)
+
+
+def _words(text) -> list:
+    return [w.strip().lower() for w in str(text or "").replace(";", ",").split(",") if w.strip()]
+
+
+def _select(side: dict) -> list:
+    """The cards one side of a rule picks: every filter given must hold;
+    within one filter (types, words of the name, groups) any may.
+    {kinds, types, attributes, stars, atk_min, atk_max, def_min, def_max,
+    level_min, level_max, name_any, name_none, text, groups, cards, results_only}"""
+    project = _project()
+
+    def number(key):
+        value = side.get(key)
+        return None if value in (None, "") else int(value)
+
+    engine = bulk.CardFilter(
+        kinds=set(side.get("kinds") or ()), types={int(t) for t in side.get("types") or ()},
+        attributes={int(a) for a in side.get("attributes") or ()}, stars={int(s) for s in side.get("stars") or ()},
+        atk_min=number("atk_min"), atk_max=number("atk_max"), def_min=number("def_min"), def_max=number("def_max"),
+        level_min=number("level_min"), level_max=number("level_max"), text=str(side.get("text") or ""),
+        results_only=bool(side.get("results_only")))
+    chosen, _ = engine.select(project)
+    wanted, unwanted = _words(side.get("name_any")), _words(side.get("name_none"))
+    names = {cid: project.cards[cid].name.lower() for cid in chosen}
+    if wanted:
+        chosen = [cid for cid in chosen if any(w in names[cid] for w in wanted)]
+    if unwanted:
+        chosen = [cid for cid in chosen if not any(w in names[cid] for w in unwanted)]
+    members = set()
+    for name in side.get("groups") or ():
+        members.update(_groups().get(name, ()))
+    members.update(int(c) for c in side.get("cards") or ())
+    if side.get("groups") or side.get("cards"):
+        chosen = [cid for cid in chosen if cid in members]
+    return chosen
+
+
+def bulk_side(side_json: str) -> str:
+    """How many cards one side picks, and the first of them."""
+    project = _project()
+    chosen = _select(json.loads(side_json))
+    return _out({"count": len(chosen), "cards": [[cid, project.cards[cid].name] for cid in chosen[:400]]})
+
+
+def _spec(spec: dict) -> bulk.BulkSpec:
+    a, b = _select(spec.get("a") or {}), _select(spec.get("b") or {})
+    ids = lambda cards: ",".join(str(c) for c in cards) or "0-0"   # no card: a list that names none
+    out = bulk.BulkSpec(a=bulk.CardFilter(cards=ids(a)), b=bulk.CardFilter(cards=ids(b)),
+                        mode="remove" if spec.get("mode") == "remove" else "add",
+                        result=int(spec.get("result") or 0), stronger=bool(spec.get("stronger", True)),
+                        allow_self=bool(spec.get("allow_self")), overwrite=bool(spec.get("overwrite")))
+    if out.mode == "add" and spec.get("result_kind") == "ladder":
+        out.result = 0
+        out.ladder = ids(_select(spec.get("ladder") or {}))
+    return out, len(a), len(b)
+
+
+def bulk_plan(spec_json: str) -> str:
+    """What a rule would do, before anything changes."""
+    project = _project()
+    spec = json.loads(spec_json)
+    engine_spec, a_count, b_count = _spec(spec)
+    if not a_count or not b_count:
+        return _out({"ok": False, "errors": [f"Card {'A' if not a_count else 'B'} picks no card: loosen its filters."],
+                     "warnings": [], "samples": [], "headline": "", "details": "", "budget": ""})
+    plan = bulk.plan(project, engine_spec)
+    name = lambda cid: project.cards[cid].name if cid in project.cards else ""
+    samples = [{"a": p[0], "b": p[1], "a_name": name(p[0]), "b_name": name(p[1]), "before": before or 0,
+                "before_name": name(before) if before else "", "after": after or 0,
+                "after_name": name(after) if after else "", "what": what}
+               for p, before, after, what in plan.samples[:60]]
+    return _out({"ok": plan.ok(), "errors": plan.errors, "warnings": plan.warnings, "samples": samples,
+                 "headline": plan.headline(), "details": plan.details(), "budget": plan.budget_line(),
+                 "changes": len(plan.changes), "a_count": plan.a_count, "b_count": plan.b_count})
+
+
+def _history_path() -> Path:
+    return ROOT / "mod" / "workshop-rules.json"
+
+
+def bulk_history() -> str:
+    """The rules applied to this mod, newest first; `undo` on those made
+    since the page opened (their batch is still known)."""
+    try:
+        rows = json.loads(_history_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        rows = []
+    live = {b["id"] for b in state.get("batches", [])}
+    return _out([dict(r, undo=r.get("id") in live) for r in reversed(rows)])
+
+
+def bulk_apply(spec_json: str, description: str) -> str:
+    import time
+    project = _project()
+    spec = json.loads(spec_json)
+    engine_spec, _, _ = _spec(spec)
+    plan = bulk.plan(project, engine_spec)
+    if not plan.ok():
+        raise ValueError("; ".join(plan.errors) or "This rule changes no fusion.")
+    batch = bulk.apply(project, plan, description)
+    project.settle_removes()
+    entry = {"id": int(time.time() * 1000), "description": description, "count": len(plan.changes),
+             "headline": plan.headline(), "spec": spec}
+    state.setdefault("batches", []).append({"id": entry["id"], "batch": batch})
+    try:
+        rows = json.loads(_history_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        rows = []
+    rows.append(entry)
+    _save()
+    _history_path().write_text(json.dumps(rows, indent=1), encoding="utf-8")
+    return _out(entry)
+
+
+def bulk_undo(entry_id: int) -> str:
+    project = _project()
+    batches = state.get("batches", [])
+    found = next((b for b in batches if b["id"] == int(entry_id)), None)
+    if found is None:
+        raise ValueError("That rule can no longer be undone; change its fusions one by one instead.")
+    restored, skipped = bulk.undo(project, found["batch"])
+    batches.remove(found)
+    try:
+        rows = [r for r in json.loads(_history_path().read_text(encoding="utf-8")) if r.get("id") != found["id"]]
+    except (OSError, ValueError):
+        rows = []
+    _save()
+    _history_path().write_text(json.dumps(rows, indent=1), encoding="utf-8")
+    return _out({"restored": restored, "skipped": skipped})
