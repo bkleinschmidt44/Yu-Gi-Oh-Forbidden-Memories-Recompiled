@@ -65,6 +65,19 @@ uint16_t TouchPad_TakePresses(void);
 /* For drawing: where a button is (0 when hidden) and whether it is held. */
 int TouchPad_Rect(TouchButton button, int *x, int *y, int *w, int *h);
 int TouchPad_Held(TouchButton button);
+/* Upright (portrait) touch screens: the picture goes at the top and the pad
+ * fills the band below it, from band_top to band_bottom (the window's
+ * coordinates, inside its safe area); 0, 0 is the usual layout. 1 when the
+ * layout changed. */
+int TouchPad_SetArea(int band_top, int band_bottom);
+/* Whether a window of that size is laid out upright (a touch screen taller
+ * than wide, the pad not set to Hide). */
+int TouchPad_PortraitFor(int window_w, int window_h);
+/* 1 with the band while laid out upright. */
+int TouchPad_Portrait(int *band_top, int *band_bottom);
+/* For drawing: the D-pad's and the face buttons' middles and a button's
+ * size; 0 when hidden. */
+int TouchPad_Pads(int *dx, int *dy, int *fx, int *fy, int *size);
 /* The PS1 pad bit of a button. */
 uint16_t TouchPad_Bit(TouchButton button);
 

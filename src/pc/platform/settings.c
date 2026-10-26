@@ -75,6 +75,10 @@ static const SettingInfo info[SET_COUNT] = {
      * phone whether auto-rotate is on or not, 1 it follows the system's
      * auto-rotate (android.c, Android_ApplyScreenRotation). */
     [SET_SCREEN_ROTATION] = {"screen_rotation", NULL, "MEMORIES_SCREEN_ROTATION", NULL, 0, 0, 1},
+    /* iOS, Video > Orientation: 0 landscape, 1 portrait (the picture on top,
+     * the touch controls below), 2 either, as the phone is held
+     * (ios_glue.m, Ios_ApplyOrientation). */
+    [SET_ORIENTATION] = {"orientation", NULL, "MEMORIES_ORIENTATION", NULL, 0, 0, 2},
     [SET_MASTER_VOLUME] = {"master_volume", "volume", "MEMORIES_MASTER_VOLUME", "MEMORIES_VOLUME", 100, 0, 100},
     [SET_MUSIC_VOLUME] = {"music_volume", NULL, "MEMORIES_MUSIC_VOLUME", NULL, 100, 0, 100},
     [SET_SFX_VOLUME] = {"sfx_volume", NULL, "MEMORIES_SFX_VOLUME", NULL, 100, 0, 100},

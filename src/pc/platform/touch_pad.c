@@ -23,6 +23,9 @@ static const uint16_t bits_of[TOUCH_BUTTONS] = {
     [TOUCH_SELECT] = 0x0001, [TOUCH_START] = 0x0008};
 
 static int mode, touched, blocked, width, height, top;
+/* Portrait (TouchPad_SetArea): the band below the picture the pad is laid
+ * out in, as a handheld's controls sit below its screen; 0, 0 otherwise. */
+static int area_top, area_bottom;
 static float density; /* window pixels per dp, 0 unknown (TouchPad_SetDensity) */
 static int rects[TOUCH_BUTTONS][4];
 static int unit, dpad_x, dpad_y, face_x, face_y;
@@ -32,9 +35,39 @@ static int menu_down, menu_taps;
 
 uint16_t TouchPad_Bit(TouchButton button) { return button < TOUCH_BUTTONS ? bits_of[button] : 0; }
 
+/* A touch screen held upright, with a band below the picture to fill. */
+static int portrait(void) { return density > 0 && height > width && area_bottom > area_top; }
+
+int TouchPad_PortraitFor(int window_w, int window_h)
+{
+    return density > 0 && window_h > window_w && mode != TOUCH_PAD_HIDE;
+}
+
 int TouchPad_Shown(void)
 {
-    return width > 0 && height > 0 && !blocked && (mode == TOUCH_PAD_SHOW || (mode == TOUCH_PAD_AUTO && touched));
+    /* Upright, Automatic shows the pad from the start: the band below the
+     * picture is the pad's and would be empty without it. */
+    return width > 0 && height > 0 && !blocked &&
+           (mode == TOUCH_PAD_SHOW || (mode == TOUCH_PAD_AUTO && (touched || portrait())));
+}
+
+int TouchPad_Portrait(int *band_top, int *band_bottom)
+{
+    if (!portrait()) return 0;
+    *band_top = area_top;
+    *band_bottom = area_bottom;
+    return 1;
+}
+
+int TouchPad_Pads(int *dx, int *dy, int *fx, int *fy, int *size)
+{
+    if (!TouchPad_Shown()) return 0;
+    *dx = dpad_x;
+    *dy = dpad_y;
+    *fx = face_x;
+    *fy = face_y;
+    *size = unit;
+    return 1;
 }
 
 static void place(TouchButton button, int x, int y, int w, int h)
@@ -53,9 +86,61 @@ static void place(TouchButton button, int x, int y, int w, int h)
  * picture leaves black bars on a phone), the shoulders above them, SELECT
  * and START below; MENU under L2/L1, the D-pad's reach (two buttons from
  * its middle) starting below MENU's. */
+/* The D-pad's arrows and the face buttons around their middles. */
+static void place_pads(int s)
+{
+    place(TOUCH_UP, dpad_x - s / 2, dpad_y - s * 3 / 2, s, s);
+    place(TOUCH_DOWN, dpad_x - s / 2, dpad_y + s / 2, s, s);
+    place(TOUCH_LEFT, dpad_x - s * 3 / 2, dpad_y - s / 2, s, s);
+    place(TOUCH_RIGHT, dpad_x + s / 2, dpad_y - s / 2, s, s);
+    place(TOUCH_TRIANGLE, face_x - s / 2, face_y - s * 3 / 2, s, s);
+    place(TOUCH_CROSS, face_x - s / 2, face_y + s / 2, s, s);
+    place(TOUCH_SQUARE, face_x - s * 3 / 2, face_y - s / 2, s, s);
+    place(TOUCH_CIRCLE, face_x + s / 2, face_y - s / 2, s, s);
+}
+
+/* Upright: the shoulders in a row along the band's top (L1 and R1 outside,
+ * MENU between them), the D-pad and the face buttons side by side in the
+ * middle, SELECT and START together at the bottom. A button is 13% of the
+ * width, 44 to 80 dp, and small enough for the band to hold about 4.5 of
+ * them top to bottom. */
+static void lay_out_portrait(void)
+{
+    int band = area_bottom - area_top, s = width * 13 / 100, m, sh, row, bottom, upper, lower;
+    int least = (int)(44 * density + 0.5f), most = (int)(80 * density + 0.5f);
+    if (s < least) s = least;
+    if (s > most) s = most;
+    if (s > band * 2 / 9) s = band * 2 / 9;
+    if (s > width * 16 / 100) s = width * 16 / 100;
+    if (s < 8) s = 8;
+    m = s * 35 / 100;
+    sh = s * 4 / 5;
+    unit = s;
+    row = area_top + m;
+    place(TOUCH_L1, m, row, sh, sh);
+    place(TOUCH_L2, m + sh + m, row, sh, sh);
+    place(TOUCH_R2, width - m - sh - m - sh, row, sh, sh);
+    place(TOUCH_R1, width - m - sh, row, sh, sh);
+    place(TOUCH_MENU, width / 2 - s * 2 / 3, row + sh / 2 - s / 4, s * 4 / 3, s / 2);
+    bottom = area_bottom - m;
+    place(TOUCH_SELECT, width / 2 - m / 2 - s * 2, bottom - s * 13 / 20, s * 2, s / 2);
+    place(TOUCH_START, width / 2 + m / 2, bottom - s * 4 / 5, s * 8 / 5, s * 4 / 5);
+    upper = row + sh + m + s * 3 / 2;  /* the pads' middles: clear of the shoulders */
+    lower = bottom - s - m - s * 3 / 2; /* and of SELECT and START */
+    dpad_y = face_y = upper > lower ? upper : (upper + lower) / 2;
+    dpad_x = width * 26 / 100;
+    if (dpad_x < m + s * 3 / 2) dpad_x = m + s * 3 / 2;
+    face_x = width - dpad_x;
+    place_pads(s);
+}
+
 static void lay_out(void)
 {
     int shorter = width < height ? width : height, s = shorter * 13 / 100, m, bottom, menu_y;
+    if (portrait()) {
+        lay_out_portrait();
+        return;
+    }
     if (density > 0) {
         int least = (int)(48 * density + 0.5f), most = (int)(80 * density + 0.5f);
         if (s < least) s = least;
@@ -70,14 +155,7 @@ static void lay_out(void)
     menu_y = top + m / 2 + s + m / 2;
     if (dpad_y - 2 * s < menu_y + s) dpad_y = face_y = menu_y + 3 * s;
     place(TOUCH_MENU, m, menu_y + s / 4, s * 4 / 3, s / 2);
-    place(TOUCH_UP, dpad_x - s / 2, dpad_y - s * 3 / 2, s, s);
-    place(TOUCH_DOWN, dpad_x - s / 2, dpad_y + s / 2, s, s);
-    place(TOUCH_LEFT, dpad_x - s * 3 / 2, dpad_y - s / 2, s, s);
-    place(TOUCH_RIGHT, dpad_x + s / 2, dpad_y - s / 2, s, s);
-    place(TOUCH_TRIANGLE, face_x - s / 2, face_y - s * 3 / 2, s, s);
-    place(TOUCH_CROSS, face_x - s / 2, face_y + s / 2, s, s);
-    place(TOUCH_SQUARE, face_x - s * 3 / 2, face_y - s / 2, s, s);
-    place(TOUCH_CIRCLE, face_x + s / 2, face_y - s / 2, s, s);
+    place_pads(s);
     place(TOUCH_L2, m, top + m / 2, s, s);
     place(TOUCH_L1, m + s * 23 / 20, top + m / 2, s, s);
     place(TOUCH_R1, width - m - s * 43 / 20, top + m / 2, s, s);
@@ -93,6 +171,15 @@ int TouchPad_SetDensity(float pixels_per_dp)
     density = pixels_per_dp;
     lay_out();
     return TouchPad_Shown();
+}
+
+int TouchPad_SetArea(int band_top, int band_bottom)
+{
+    if (band_top == area_top && band_bottom == area_bottom) return 0;
+    area_top = band_top;
+    area_bottom = band_bottom;
+    lay_out();
+    return 1;
 }
 
 int TouchPad_Layout(int window_w, int window_h, int bar)
@@ -140,6 +227,8 @@ static Zone zone_at(int x, int y, TouchButton *button)
 {
     TouchButton b;
     long reach = (long)unit * unit * 4; /* two buttons from the middle */
+    long half = (face_x - dpad_x) / 2;
+    if (half * half < reach) reach = half * half; /* upright the two sit close: split between them */
     if (distance2(x, y, dpad_x, dpad_y) <= reach) return ZONE_DPAD;
     if (distance2(x, y, face_x, face_y) <= reach) return ZONE_FACE;
     for (b = TOUCH_L1; b < TOUCH_BUTTONS; b++) {
@@ -243,6 +332,11 @@ int TouchPad_FreeSpan(int *left, int *right)
 {
     int i, grow = unit * 15 / 100;
     if (!TouchPad_Shown()) return 0;
+    if (portrait()) { /* the pad is below the picture, not beside it */
+        *left = 0;
+        *right = width;
+        return 1;
+    }
     *left = dpad_x + 2 * unit; /* the D-pad's and the face buttons' reach (zone_at) */
     *right = face_x - 2 * unit;
     for (i = 0; i < TOUCH_BUTTONS; i++) {

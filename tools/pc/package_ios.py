@@ -128,7 +128,10 @@ def package(binary, out, label):
     build_number = subprocess.check_output(["git", "rev-list", "--count", "HEAD"], cwd=ROOT, text=True).strip()
     revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     release = re.match(r"^v?(\d+\.\d+\.\d+)", label)
-    landscape = ["UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"]
+    # Landscape by default; Video > Orientation can turn the game upright
+    # (ios_glue.m), so portrait is allowed too.
+    landscape = ["UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight",
+                 "UIInterfaceOrientationPortrait"]
     sdk = sdk_version()
     info = {
         "CFBundleName": "FM Recompiled",

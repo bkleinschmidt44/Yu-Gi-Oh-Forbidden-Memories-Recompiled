@@ -3,6 +3,7 @@
 #include "touch_pad.h"
 #include "pc/cards/disc_art.h"
 #include "pc/text/overlay_text.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -145,16 +146,64 @@ static void grow(int *x0, int *y0, int *x1, int *y1, int x, int y, int w, int h)
     if (y + h > *y1) *y1 = y + h;
 }
 
+/* One of the band's colors, `t` (0-256) of the way from `a` to `b`. */
+static uint32_t mix(uint32_t a, uint32_t b, int t)
+{
+    uint32_t out = 0xFF000000u;
+    int shift;
+    for (shift = 0; shift < 24; shift += 8) {
+        int ca = (int)(a >> shift & 255), cb = (int)(b >> shift & 255);
+        out |= (uint32_t)(ca + (cb - ca) * t / 256) << shift;
+    }
+    return out;
+}
+
+/* Upright, the band below the picture is the controller's body: a dark
+ * face, lighter toward the top, with a raised well under the D-pad and one
+ * under the face buttons. Opaque, so the window behind it never shows. */
+static void draw_body(MenuCanvas *canvas, int top, int bottom)
+{
+    int dx, dy, fx, fy, size, px, py;
+    long well;
+    if (!TouchPad_Pads(&dx, &dy, &fx, &fy, &size)) return;
+    if (top < 0) top = 0;
+    if (bottom > canvas->height) bottom = canvas->height;
+    well = (long)size * 215 / 100;
+    for (py = top; py < bottom; py++) {
+        int t = bottom > top + 1 ? (py - top) * 256 / (bottom - top - 1) : 0;
+        uint32_t base = py < top + 2 ? 0xFF41444Cu : mix(0xFF2C2E34u, 0xFF16171Au, t);
+        uint32_t *row = canvas->pixels + (long)py * canvas->stride;
+        for (px = 0; px < canvas->width; px++) {
+            long ex = px - dx, ey = py - dy, gx = px - fx, gy = py - fy;
+            long d2 = ex * ex + ey * ey < gx * gx + gy * gy ? ex * ex + ey * ey : gx * gx + gy * gy;
+            uint32_t color = base;
+            if (d2 < well * well) {
+                /* the well's rim a little darker, its floor a little lighter */
+                long rim = well - well / 14;
+                color = d2 > rim * rim ? mix(base, 0xFF0C0C0Eu, 120) : mix(base, 0xFF3A3D45u, 150);
+            }
+            row[px] = color;
+        }
+    }
+}
+
 void TouchPadArt_Draw(MenuCanvas *canvas, int *x, int *y, int *w, int *h)
 {
-    int x0 = 1 << 30, y0 = 1 << 30, x1 = -(1 << 30), y1 = -(1 << 30), i, bx, by, bw, bh;
+    int x0 = 1 << 30, y0 = 1 << 30, x1 = -(1 << 30), y1 = -(1 << 30), i, bx, by, bw, bh, band_top, band_bottom;
+    int upright;
     *x = *y = *w = *h = 0;
     if (!TouchPad_Shown() || !ready()) return;
+    upright = TouchPad_Portrait(&band_top, &band_bottom);
+    if (upright) {
+        draw_body(canvas, band_top, canvas->height); /* down to the very edge, under the home bar too */
+        grow(&x0, &y0, &x1, &y1, 0, band_top, canvas->width, canvas->height - band_top);
+    }
     for (i = 0; i < TOUCH_BUTTONS; i++) {
         /* Let go, the picture is see-through over what is behind it; held,
-         * it is solid and a little smaller, as if pushed in. */
+         * it is solid and a little smaller, as if pushed in. Upright, over
+         * the body rather than the game, they are nearly solid. */
         int down = TouchPad_Held((TouchButton)i), inset;
-        unsigned opacity = down ? 255 : 150;
+        unsigned opacity = down ? 255 : upright ? 225 : 150;
         if (!TouchPad_Rect((TouchButton)i, &bx, &by, &bw, &bh)) return;
         grow(&x0, &y0, &x1, &y1, bx, by, bw, bh);
         inset = down ? bw / 16 : 0;

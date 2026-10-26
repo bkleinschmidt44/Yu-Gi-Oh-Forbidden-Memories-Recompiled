@@ -1254,6 +1254,7 @@ static void relayout(void)
      * what the window is laid out for, whatever the internal resolution. */
     int pw = aspect == 1 ? logical_w : aspect == 2 ? logical_h * 16 / 9 : logical_h * 4 / 3;
     int ph = logical_h, area_h, mode = Settings_Get(SET_SCALING);
+    int portrait, portrait_y = 0, portrait_h = 0, band_top = 0, band_bottom = 0;
     float factor;
     if ((!renderer && !use_gl) || picture_w <= 0 || picture_h <= 0 ||
         !SDL_GetWindowSize(window, &window_w, &window_h) ||
@@ -1268,6 +1269,26 @@ static void relayout(void)
     if (area_h < 1) area_h = 1;
     layout.win_w = window_w;
     layout.win_h = window_h;
+    /* A phone held upright: the picture across the top (below the notch),
+     * the touch controls in the band below it, as on a handheld. */
+    portrait = TouchPad_PortraitFor(window_w, window_h) && pw > 0;
+    if (portrait) {
+        SDL_Rect safe;
+        int inset_top = 0, inset_bottom = 0;
+        if (SDL_GetWindowSafeArea(window, &safe)) {
+            inset_top = safe.y;
+            inset_bottom = window_h - safe.y - safe.h;
+        }
+        portrait_h = (int)((long long)window_w * ph / pw);
+        portrait_y = inset_top + menu;
+        band_top = portrait_y + portrait_h;
+        band_bottom = window_h - inset_bottom;
+        if (band_bottom - band_top < window_h / 4) { /* no room for the pad below it */
+            portrait = 0;
+            band_top = band_bottom = 0;
+        }
+    }
+    if (TouchPad_SetArea(band_top, band_bottom)) menu_dirty = 1;
     if (TouchPad_Layout(window_w, window_h, menu)) menu_dirty = 1;
     if (Panel_Shown()) layout_panel();
     layout.pixel_x = (float)output_w / (float)window_w;
@@ -1279,7 +1300,12 @@ static void relayout(void)
         logged_window_w = window_w; logged_window_h = window_h;
         logged_output_w = output_w; logged_output_h = output_h;
     }
-    if (mode == 2) {
+    if (portrait) {
+        layout.dst.x = 0;
+        layout.dst.y = (float)portrait_y;
+        layout.dst.w = (float)window_w;
+        layout.dst.h = (float)portrait_h;
+    } else if (mode == 2) {
         layout.dst.x = 0;
         layout.dst.y = (float)menu;
         layout.dst.w = (float)window_w;
@@ -1355,6 +1381,9 @@ static void apply_display_settings(void)
     display_picture_size(&pw, &ph);
 #ifdef SDL_PLATFORM_ANDROID
     Android_ApplyScreenRotation(Settings_Get(SET_SCREEN_ROTATION));
+#endif
+#ifdef MEMORIES_IOS
+    Ios_ApplyOrientation(Settings_Get(SET_ORIENTATION));
 #endif
     if (fullscreen == 2) {
         SDL_DisplayID display = SDL_GetDisplayForWindow(window);
@@ -2164,7 +2193,10 @@ static void pump(void)
     }
     if (mods_window && mods_dirty) draw_mods();
     mods_dirty = 0;
-    if (TouchPad_SetMode(Settings_Get(SET_TOUCH_PAD))) menu_dirty = 1;
+    if (TouchPad_SetMode(Settings_Get(SET_TOUCH_PAD))) {
+        menu_dirty = 1;
+        relayout(); /* Hide gives an upright phone's picture the whole window */
+    }
     /* Once per pump, after every event of it: SDL delivers a tap as finger
      * events and mouse events made of them, and the pad yielding or coming
      * back between the two would hand one half to the menu and the other to

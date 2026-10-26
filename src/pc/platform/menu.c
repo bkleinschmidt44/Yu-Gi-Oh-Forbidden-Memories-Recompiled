@@ -118,9 +118,9 @@ enum { MENU_FILE, MENU_VIDEO, MENU_AUDIO, MENU_GAME, MENU_VIEW, MENU_DEBUG, MENU
 #else
 #define HELP_ITEMS 6
 #endif
-enum { SUB_SCALE, SUB_MENU_SIZE, SUB_SPEED, SUB_FPS, SUB_CHEATS, SUB_TRACE, SUB_SCALING, SUB_ASPECT, SUB_RESOLUTION, SUB_COLOR, SUB_EFFECTS, SUB_JUMP, SUB_ANTIALIAS, SUB_FILTER, SUB_RANK, SUB_LANGUAGE, SUB_PGXP, SUB_TOUCH, SUB_ROTATION, SUB_COUNT };
-#ifdef __ANDROID__
-#define VIDEO_ITEMS 15 /* with Screen rotation */
+enum { SUB_SCALE, SUB_MENU_SIZE, SUB_SPEED, SUB_FPS, SUB_CHEATS, SUB_TRACE, SUB_SCALING, SUB_ASPECT, SUB_RESOLUTION, SUB_COLOR, SUB_EFFECTS, SUB_JUMP, SUB_ANTIALIAS, SUB_FILTER, SUB_RANK, SUB_LANGUAGE, SUB_PGXP, SUB_TOUCH, SUB_ROTATION, SUB_ORIENTATION, SUB_COUNT };
+#if defined(__ANDROID__) || defined(MEMORIES_IOS)
+#define VIDEO_ITEMS 15 /* with Screen rotation (Android) or Orientation (iOS) */
 #else
 #define VIDEO_ITEMS 14
 #endif
@@ -141,6 +141,8 @@ static Menu menus[MENU_COUNT] = {
               {"Borderless fullscreen", 0, ITEM_CHECK, MENU_ITEM_BORDERLESS, SET_BORDERLESS},
 #ifdef __ANDROID__
               {"Screen rotation", 0, ITEM_SUBMENU, 0, -1, SUB_ROTATION},
+#elif defined(MEMORIES_IOS)
+              {"Orientation", 0, ITEM_SUBMENU, 0, -1, SUB_ORIENTATION},
 #endif
               {"Scaling", 0, ITEM_SUBMENU, 0, -1, SUB_SCALING, ITEM_GROUP_BREAK},
               {"Aspect Ratio", 0, ITEM_SUBMENU, 0, -1, SUB_ASPECT},
@@ -307,6 +309,11 @@ static Menu submenus[SUB_COUNT] = {
      * phone by its sensor, or only as the system's auto-rotate allows. */
     {"Screen rotation", {{"Turn with the phone", 0, ITEM_RADIO, 0, SET_SCREEN_ROTATION, 0},
                          {"Follow auto-rotate", 0, ITEM_RADIO, 0, SET_SCREEN_ROTATION, 1}}, 2},
+    /* iOS (ios_glue.m, Ios_ApplyOrientation): portrait puts the picture on
+     * top and the touch controls below it (touch_pad.c). */
+    {"Orientation", {{"Landscape", 0, ITEM_RADIO, 0, SET_ORIENTATION, 0},
+                     {"Portrait", 0, ITEM_RADIO, 0, SET_ORIENTATION, 1},
+                     {"Automatic (as held)", 0, ITEM_RADIO, 0, SET_ORIENTATION, 2}}, 3},
 };
 
 static int open_menu = -1, hot_item = -1, hover_bar = -1, grabbed, ready, visible = 1;

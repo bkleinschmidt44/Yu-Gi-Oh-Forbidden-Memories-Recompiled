@@ -154,6 +154,50 @@ int Platform_SelectDisc(char *path, size_t size, char *why, size_t why_size)
     }
 }
 
+/* --- orientation ------------------------------------------------------------ */
+
+void Ios_ApplyOrientation(int mode); /* platform.h */
+
+/* Video > Orientation (platform.h): SDL's view controller reads
+ * SDL_HINT_ORIENTATIONS each time UIKit asks what it supports, so the hint
+ * changes it; UIKit is then told to ask again and turn the window. */
+void Ios_ApplyOrientation(int mode)
+{
+    static int applied = -1;
+    const char *hint = mode == 1 ? "Portrait" : mode == 2 ? "LandscapeLeft LandscapeRight Portrait"
+                                                          : "LandscapeLeft LandscapeRight";
+    UIInterfaceOrientationMask mask = mode == 1 ? UIInterfaceOrientationMaskPortrait
+                                    : mode == 2 ? (UIInterfaceOrientationMaskLandscape | UIInterfaceOrientationMaskPortrait)
+                                                : UIInterfaceOrientationMaskLandscape;
+    if (mode == applied) return;
+    applied = mode;
+    SDL_SetHint(SDL_HINT_ORIENTATIONS, hint);
+    @autoreleasepool {
+        for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            if (![scene isKindOfClass:[UIWindowScene class]]) continue;
+            UIWindowScene *windows = (UIWindowScene *)scene;
+            if (@available(iOS 16.0, *)) {
+                for (UIWindow *window in windows.windows)
+                    [window.rootViewController setNeedsUpdateOfSupportedInterfaceOrientations];
+                if (mode != 2) {
+                    UIWindowSceneGeometryPreferencesIOS *wanted =
+                        [[UIWindowSceneGeometryPreferencesIOS alloc] initWithInterfaceOrientations:mask];
+                    [windows requestGeometryUpdateWithPreferences:wanted
+                                                     errorHandler:^(NSError *error) {
+                                                         fprintf(stderr, "memories-ios: orientation: %s\n",
+                                                                 error.localizedDescription.UTF8String);
+                                                     }];
+                }
+            }
+        }
+        if (@available(iOS 16.0, *)) {
+        } else {
+            [UIViewController attemptRotationToDeviceOrientation];
+        }
+    }
+    fprintf(stderr, "memories-ios: orientation %s\n", hint);
+}
+
 /* --- start ----------------------------------------------------------------- */
 
 /* KEY=VALUE lines of Documents/environment.txt (# starts a comment). */

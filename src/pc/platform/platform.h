@@ -80,6 +80,12 @@ int Platform_HasDesktopGL(void);
  * system's auto-rotate allows. sdl.c applies it with the display settings. */
 void Android_ApplyScreenRotation(int follow_system);
 #endif
+#ifdef MEMORIES_IOS
+/* iOS (ios_glue.m): Video > Orientation (SET_ORIENTATION), 0 landscape,
+ * 1 portrait, 2 either, as the phone is held. sdl.c applies it with the
+ * display settings. */
+void Ios_ApplyOrientation(int mode);
+#endif
 /* The fixed-address guest memory could not be mapped (image.c says where on
  * standard error): 1 with a message for the player in `why` where the
  * platform can say what it means, 0 where it has nothing to add (the
